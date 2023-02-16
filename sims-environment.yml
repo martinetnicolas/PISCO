@@ -1,0 +1,21 @@
+# Environment file inherited from mdet-lsst-sims by mbecker
+# Used to generate the training data
+name: pisco-sims
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - ipython
+  - ipykernel
+  - jupyter
+  - stackvana
+  - meds
+  - lsstdesc.weaklensingdeblending
+  - ngmix
+  - galsim
+  - wget
+  - pip:
+      - git+https://github.com/LSSTDESC/descwl-shear-sims.git
+      - tensorflow-datasets
