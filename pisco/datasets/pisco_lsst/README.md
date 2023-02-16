@@ -1,4 +1,4 @@
-TODO(descwlShearSims): Markdown description of that will appear on the catalog page.
+TODO(pisco_lsst): Markdown description of that will appear on the catalog page.
 Description is **formatted** as markdown.
 
 It should also contain any processing which has been applied (if any),

@@ -1,13 +1,13 @@
-"""descwlShearSims dataset."""
+"""pisco_lsst dataset."""
 
 import tensorflow_datasets as tfds
-from . import descwlShearSims_dataset_builder
+from . import pisco_lsst_dataset_builder
 
 
-class DescwlshearsimsTest(tfds.testing.DatasetBuilderTestCase):
-  """Tests for descwlShearSims dataset."""
-  # TODO(descwlShearSims):
-  DATASET_CLASS = descwlShearSims_dataset_builder.Builder
+class PiscoLsstTest(tfds.testing.DatasetBuilderTestCase):
+  """Tests for pisco_lsst dataset."""
+  # TODO(pisco_lsst):
+  DATASET_CLASS = pisco_lsst_dataset_builder.Builder
   SPLITS = {
       'train': 3,  # Number of fake train example
       'test': 1,  # Number of fake test example

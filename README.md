@@ -14,7 +14,8 @@ $ micromamba env create -f sims-environment.yml -y
 
 ```bash
 $ micromamba activate pisco-sims
-(pisco-sims)$ tfds build pisco
+(pisco-sims)$ cd pisco/datasets/pisco_lsst
+(pisco-sims)$ tfds build
 ```
 
 Will run the simulations and assemble the dataset.

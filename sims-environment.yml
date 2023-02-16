@@ -16,6 +16,7 @@ dependencies:
   - ngmix
   - galsim
   - wget
+  - tensorflow
+  - tensorflow-datasets
   - pip:
       - git+https://github.com/LSSTDESC/descwl-shear-sims.git
-      - tensorflow-datasets
