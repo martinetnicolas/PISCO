@@ -48,7 +48,7 @@ def _get_trial(trial):
       psf=psf,
       psf_dim=51,
       bands=['r', 'i', 'z'],
-      noise_factor=0.58,
+      noise_factor=0.2,
       cosmic_rays=True,
       bad_columns=True,
       star_bleeds=True,
@@ -104,7 +104,7 @@ class Builder(tfds.core.GeneratorBasedBuilder):
     # get the number of logical cpu cores
     n_cores = cpu_count()
     pool = Pool(processes=n_cores)
-    ntrial = 10_000
+    ntrial = 50_000
 
     for batch in range(ntrial // n_cores):
       trials = np.arange(batch*n_cores, (batch+1)*n_cores)
