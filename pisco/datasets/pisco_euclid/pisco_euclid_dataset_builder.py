@@ -2,8 +2,10 @@
 import numpy as np
 import tensorflow_datasets as tfds
 
+# TODO: Remove the need to load a dataset
+catalog = np.load('ingal_1_b24.5_1000000.npy')
 
-def _get_image(seed, catalog=None):
+def _get_image(seed):
   import galsim
   import math
 
@@ -194,10 +196,8 @@ class Builder(tfds.core.GeneratorBasedBuilder):
     pool = Pool(processes=n_cores)
     ntrial = 100
 
-    catalog = np.load(path)
-
     # Generate all images at once 
-    results = pool.map(lambda x: _get_image(x, catalog=catalog), np.arange(ntrial))
+    results = pool.map(_get_image, np.arange(ntrial))
 
     # Done, closing pool
     pool.close()
