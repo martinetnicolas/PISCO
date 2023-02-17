@@ -8,6 +8,8 @@ catalog = np.load('ingal_1_b24.5_1000000.npy')
 def _get_image(seed):
   import galsim
   import math
+  np.random.seed(seed)
+
 
   pixel_scale = 0.1    # pix size in arcsec (sizes in input catalog in pixels)
   xsize = 64           # gal patch size in pixels (6.4'')
