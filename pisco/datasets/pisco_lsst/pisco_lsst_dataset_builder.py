@@ -110,4 +110,4 @@ class Builder(tfds.core.GeneratorBasedBuilder):
       trials = np.arange(batch*n_cores, (batch+1)*n_cores)
       results = pool.map(_get_trial, trials)
       for trial, result in results:
-        yield trial, result
+        yield int(trial), result
