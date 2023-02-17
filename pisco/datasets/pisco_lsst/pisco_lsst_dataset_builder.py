@@ -104,10 +104,13 @@ class Builder(tfds.core.GeneratorBasedBuilder):
     # get the number of logical cpu cores
     n_cores = cpu_count()
     pool = Pool(processes=n_cores)
-    ntrial = 50_000
+    ntrial = 10_000
 
-    for batch in range(ntrial // n_cores):
-      trials = np.arange(batch*n_cores, (batch+1)*n_cores)
-      results = pool.map(_get_trial, trials)
-      for trial, result in results:
-        yield int(trial), result
+    # Generate all images at once 
+    results = pool.map(_get_trial, np.arange(ntrial))
+
+    # Done, closing pool
+    pool.close()
+
+    for trial, result in results:
+      yield int(trial), result
