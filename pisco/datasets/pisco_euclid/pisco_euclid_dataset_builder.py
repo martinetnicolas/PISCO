@@ -79,7 +79,7 @@ def _get_image(seed, catalog=None):
   ave_g2 = 0
 
   #loop on gals
-  for k in range(nobj):
+  for i in range(nobj):
     #Draw a random entry in the catalog
     k = np.random.randint(0,len(catalog))
     
