@@ -3,7 +3,7 @@ import numpy as np
 import tensorflow_datasets as tfds
 
 # TODO: Remove the need to load a dataset
-catalog = np.load('ingal_1_b24.5_1000000.npy')
+catalog = np.load('/net/GECO/nas12c/users/nmartinet/PISCO/PIX2SHEAR/PROGRAMS_GIT/PISCO/pisco/datasets/pisco_euclid/ingal_1_b24.5_1000000.npy')
 
 def _get_image(seed):
   import galsim
@@ -162,6 +162,7 @@ class Builder(tfds.core.GeneratorBasedBuilder):
   VERSION = tfds.core.Version('1.0.0')
   RELEASE_NOTES = {
       '1.0.0': 'Initial release.',
+      '1.0.1': 'Test - 50 trial',
   }
 
   def _info(self) -> tfds.core.DatasetInfo:
@@ -187,7 +188,7 @@ class Builder(tfds.core.GeneratorBasedBuilder):
 
     # TODO(pisco_euclid): Returns the Dict[split names, Iterator[Key, Example]]
     return {
-        'train': self._generate_examples('ingal_1_b24.5_1000000.npy'),
+        'train': self._generate_examples('/net/GECO/nas12c/users/nmartinet/PISCO/PIX2SHEAR/PROGRAMS_GIT/PISCO/pisco/datasets/pisco_euclid/ingal_1_b24.5_1000000.npy'),
     }
 
   def _generate_examples(self, path):
@@ -197,6 +198,7 @@ class Builder(tfds.core.GeneratorBasedBuilder):
     n_cores = cpu_count()
     pool = Pool(processes=n_cores)
     ntrial = 50_000
+    #ntrial = 50
 
     # Generate all images at once 
     results = pool.map(_get_image, np.arange(ntrial))
