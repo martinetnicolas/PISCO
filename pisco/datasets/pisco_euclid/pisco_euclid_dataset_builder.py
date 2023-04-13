@@ -3,13 +3,62 @@ import numpy as np
 import tensorflow_datasets as tfds
 
 # TODO: Remove the need to load a dataset
-catalog = np.load('/net/GECO/nas12c/users/nmartinet/PISCO/PIX2SHEAR/PROGRAMS_GIT/PISCO/pisco/datasets/pisco_euclid/ingal_1_b24.5_1000000.npy')
+#catalog = np.load('ingal_1_b24.5_1000000.npy')
+#catalog = np.load('/net/GECO/nas12c/users/nmartinet/PISCO/PIX2SHEAR/PROGRAMS_GIT/PISCO/pisco/datasets/pisco_euclid/ingal_1_b24.5_1000000.npy')
 
 def _get_image(seed):
   import galsim
   import math
   np.random.seed(seed)
 
+  ######function to generate gal properties##########
+  def generateaUDFgal(seed,image_size,sigma_eps):
+    #read CDF computed from UDF data
+    PDFmag = np.array([[20.5,0.04508],[21.0,0.09016],[21.5,0.14754],[22.0,0.20902],[22.5,0.31967],[23.0,0.43033],[23.5,0.67213],[24.0,1.0]])    
+    PDFn_cmag = np.array([[20.5,0, 0],[20.5,0.5,0.2727],[20.5,0.75,0.5454],[20.5,1.0,0.63636],[20.5,1.25,0.7272],[20.5,1.75,0.81818],[20.5,3.0,1.0],[21.0,0.0,0.0],[21.0,0.75,0.54545],[21.0,1.25,0.63636],[21.0,1.75,0.72727],[21.0,4.0,0.909090],[21.0,4.5,1.0],[21.5,0.0,0.0],[21.5,0.25,0.14285],[21.5,0.5,0.357142],[21.5,1.0,0.428571],[21.5,1.25,0.57142],[21.5,2.0,0.642857],[21.5,2.25,0.71428],[21.5,4.0,0.785714],[21.5,4.5,0.857142],[21.5,5.0,0.928571],[21.5,5.25,1.0],[22.0,0.0,0.0],[22.0,0.25,0.13333],[22.0,0.5,0.266666],[22.0,0.75,0.46666],[22.0,1.25,0.53333],[22.0,1.5,0.599999],[22.0,1.75,0.66666],[22.0,2.5,0.799999],[22.0,3.0,0.866666],[22.0,3.75,0.93333],[22.0,4.25,1.0],[22.5,0.0,0.0],[22.5,0.25,0.11111],[22.5,0.50,0.37037],[22.5,0.750,0.48140],[22.5,1.0,0.740740],[22.5,1.25,0.81481],[22.5,1.75,0.85185],[22.5,2.0,0.888888],[22.5,2.25,0.92592],[22.5,2.75,0.96296],[22.5,4.0,1.0],[23.0,0.0,0.0],[23.0,0.25,0.22222],[23.0,0.50,0.44444],[23.0,0.75,0.70370],[23.0,1.00,0.88888],[23.0,1.25,0.92592],[23.0,2.00,0.96296],[23.0,2.50,1.0],[23.5,0.00,0.0],[23.5,0.25,0.1],[23.5,0.50,0.28333],[23.5,0.75,0.44999],[23.5,1.00,0.61666],[23.5,1.25,0.76666],[23.5,1.50,0.83333],[23.5,2.25,0.9],[23.5,2.50,0.95],[23.5,2.75,0.96666],[23.5,6.00,0.98333],[23.5,6.75,1.0],[24.0,0.00,0.0],[24.0,0.25,0.05000],[24.0,0.50,0.11250],[24.0,0.75,0.26250],[24.0,1.00,0.41249],[24.0,1.25,0.57499],[24.0,1.50,0.66249],[24.0,1.75,0.75000],[24.0,2.00,0.80000],[24.0,2.25,0.83750],[24.0,2.50,0.87500],[24.0,2.75,0.88749],[24.0,3.00,0.92499],[24.0,3.25,0.93749],[24.0,3.50,0.94999],[24.0,3.75,0.96249],[24.0,5.00,0.97499],[24.0,7.50,0.98749],[24.0,8.75,1.0]])
+    PDFhlr_cmag = np.array([[20.5,0.,0.],[20.5,0.2,0.0909],[20.5,0.3,0.1818],[20.5,0.4,0.4545],[20.5,0.7,0.5454],[20.5,0.9,0.6363],[20.5,1.,0.8181],[20.5,1.1,1.],[21.0,0.,0.],[21.0,0.2,0.1818],[21.0,0.3,0.5454],[21.0,0.5,0.6363],[21.0,0.6,0.7272],[21.0,0.8,1.],[21.5,0.,0.],[21.5,0.1,0.0714],[21.5,0.2,0.3571],[21.5,0.3,0.5],[21.5,0.4,0.6428],[21.5,0.5,0.7857],[21.5,0.6,0.9285],[21.5,0.7,1.],[22.0,0.,0.],[22.0,0.1,0.0666],[22.0,0.2,0.1333],[22.0,0.3,0.4666],[22.0,0.4,0.6],[22.0,0.5,0.7333],[22.0,0.6,0.9333],[22.0,0.8,1.],[22.5,0.,0.],[22.5,0.1,0.0370],[22.5,0.2,0.1111],[22.5,0.3,0.3703],[22.5,0.4,0.7037],[22.5,0.5,0.7777],[22.5,0.6,0.8148],[22.5,0.7,0.9259],[22.5,0.8,1.],[23.0,0.,0.],[23.0,0.1,0.0740],[23.0,0.2,0.2962],[23.0,0.3,0.4814],[23.0,0.4,0.7777],[23.0,0.5,0.8888],[23.0,0.6,0.9629],[23.0,0.8,1.],[23.5,0.,0.0166],[23.5,0.1,0.1833],[23.5,0.2,0.45],[23.5,0.3,0.7166],[23.5,0.4,0.9166],[23.5,0.5,1.],[24.0,0.,0.],[24.0,0.1,0.3125],[24.0,0.2,0.6],[24.0,0.3,0.8625],[24.0,0.4,0.9625],[24.0,0.5,1.]])
+    
+    #define granularity of CDfs
+    dmag = 0.5
+    dhlr=0.1
+  
+    #initialize random generators
+    uds_gal = galsim.UniformDeviate(seed)
+    gds_gal = galsim.GaussianDeviate(seed=seed, mean=0.0, sigma=sigma_eps)
+  
+    #generate mag
+    magi = np.min(PDFmag[PDFmag[:,1] >= uds_gal()][:,0])
+    mag = magi + dmag * uds_gal()
+  
+    #generate ns and hlr from mag bin
+    PDFn_cmagi = PDFn_cmag[PDFn_cmag[:,0] == magi]
+    ns = np.min(PDFn_cmagi[PDFn_cmagi[:,2] >= uds_gal()][:,1])
+  
+    PDFhlr_cmagi = PDFhlr_cmag[PDFhlr_cmag[:,0] == magi]
+    hlr = np.min(PDFhlr_cmagi[PDFhlr_cmagi[:,2] >= uds_gal()][:,1]) + dhlr * uds_gal()
+  
+    #put ns in galsim range
+    if ns < 0.3:
+      ns = 0.3
+    if ns > 6.2:
+      ns = 6.2
+  
+    #generate x,y
+    x = uds_gal()*image_size
+    y = uds_gal()*image_size
+  
+    #generate ells1,ells2
+    ells1 = gds_gal()
+    ells2 = gds_gal()
+  
+    #remove large ellipticity modulus
+    while np.sqrt(ells1**2 + ells2**2) > 0.7:
+      ells1 = gds_gal()
+      ells2 = gds_gal()
+  
+    return x,y,mag,hlr,ns,ells1,ells2
+  ##################################""
+  
 
   pixel_scale = 0.1    # pix size in arcsec (sizes in input catalog in pixels)
   xsize = 64           # gal patch size in pixels (6.4'')
@@ -17,6 +66,7 @@ def _get_image(seed):
   image_size = 352     # image size in pixels (0.59')
 
   nobj = 10
+  sigma_eps = 0.26
 
   t_exp = 3*565 #s
   gain = 3.1 #e-/ADU
@@ -85,17 +135,20 @@ def _get_image(seed):
   #loop on gals
   for i in range(nobj):
     #Draw a random entry in the catalog
-    k = np.random.randint(0,len(catalog))
+    #k = np.random.randint(0,len(catalog))
     
     #Read galaxy parameters from catalog
-    x = catalog[k, 0] 
-    y = catalog[k, 1] 
-    mag = catalog[k, 4] 
-    half_light_radius = catalog[k, 6] 
-    nsersic = catalog[k, 5] 
-    ells1 = catalog[k, 8] 
-    ells2 = catalog[k, 9] 
+    #x = catalog[k, 0] 
+    #y = catalog[k, 1] 
+    #mag = catalog[k, 4] 
+    #half_light_radius = catalog[k, 6] 
+    #nsersic = catalog[k, 5] 
+    #ells1 = catalog[k, 8] 
+    #ells2 = catalog[k, 9]
     
+    #generate galaxy parameters
+    x,y,mag,half_light_radius,nsersic,ells1,ells2 = generateaUDFgal(seed*1000000000+i,image_size,sigma_eps)
+        
     #Get position on sky
     image_pos = galsim.PositionD(x,y)
     world_pos = affine.toWorld(image_pos)
@@ -123,7 +176,7 @@ def _get_image(seed):
     final = galsim.Convolve([psf, gal])
 
     #offset the center for pixelization (of random fraction of half a pixel)
-    ud = galsim.UniformDeviate(seed+k)
+    ud = galsim.UniformDeviate(seed+i)
     x_nominal = image_pos.x+0.5
     y_nominal = image_pos.y+0.5
     ix_nominal = int(math.floor(x_nominal+0.5))
@@ -159,10 +212,10 @@ def _get_image(seed):
 class Builder(tfds.core.GeneratorBasedBuilder):
   """DatasetBuilder for pisco_euclid dataset."""
 
-  VERSION = tfds.core.Version('1.0.0')
+  VERSION = tfds.core.Version('1.0.1')
   RELEASE_NOTES = {
       '1.0.0': 'Initial release.',
-      '1.0.1': 'Test - 50 trial',
+      '1.0.1': 'Generate gal properties.',
   }
 
   def _info(self) -> tfds.core.DatasetInfo:
@@ -185,20 +238,24 @@ class Builder(tfds.core.GeneratorBasedBuilder):
     """Returns SplitGenerators."""
     # TODO(pisco_euclid): Downloads the data and defines the splits
     # path = dl_manager.download_and_extract('https://todo-data-url')
-
+    #path = '/net/GECO/nas12c/users/nmartinet/PISCO/PIX2SHEAR/IMAGESIMS/'
+    
     # TODO(pisco_euclid): Returns the Dict[split names, Iterator[Key, Example]]
     return {
-        'train': self._generate_examples('/net/GECO/nas12c/users/nmartinet/PISCO/PIX2SHEAR/PROGRAMS_GIT/PISCO/pisco/datasets/pisco_euclid/ingal_1_b24.5_1000000.npy'),
+    #    'train': self._generate_examples('ingal_1_b24.5_1000000.npy'),
+    #    'train': self._generate_examples('/net/GECO/nas12c/users/nmartinet/PISCO/PIX2SHEAR/PROGRAMS_GIT/PISCO/pisco/datasets/pisco_euclid/ingal_1_b24.5_1000000.npy'),
+        'train': self._generate_examples(),
     }
 
-  def _generate_examples(self, path):
+  #def _generate_examples(self, path):
+  def _generate_examples(self):
     """Yields examples."""
     from multiprocessing import Pool, cpu_count
     # get the number of logical cpu cores
     n_cores = cpu_count()
     pool = Pool(processes=n_cores)
-    ntrial = 50_000
-    #ntrial = 50
+    #ntrial = 50_000
+    ntrial = 50
 
     # Generate all images at once 
     results = pool.map(_get_image, np.arange(ntrial))
