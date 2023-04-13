@@ -254,8 +254,7 @@ class Builder(tfds.core.GeneratorBasedBuilder):
     # get the number of logical cpu cores
     n_cores = cpu_count()
     pool = Pool(processes=n_cores)
-    #ntrial = 50_000
-    ntrial = 50
+    ntrial = 50_000
 
     # Generate all images at once 
     results = pool.map(_get_image, np.arange(ntrial))
