@@ -1,0 +1,1 @@
+from shear2cosmo.datasets.cosmo_slics import cosmo_slics_dataset_builder
