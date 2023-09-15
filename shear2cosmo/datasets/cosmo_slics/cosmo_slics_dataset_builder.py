@@ -5,11 +5,27 @@ import numpy as np
 
 def _get_Map(trial):
     
-    CP = trial
-    IC = 'a'
-    LOS = 1
-    shape = 1001
-    Q = 1
+    N_CP = 25
+    N_f = 2
+    N_LOS = 5#5
+    N_shape = 5#10
+    N_Q = 4
+    
+    CP = int(trial // (N_f * N_LOS * N_shape * N_Q))
+    remainder = int(trial % (N_f * N_LOS * N_shape * N_Q))
+    IC_int = int(remainder // (N_LOS * N_shape * N_Q))
+    remainder = int(remainder % (N_LOS * N_shape * N_Q))
+    if IC_int == 0:
+        IC = 'a'
+    elif IC_int == 1:
+        IC= 'f'
+    LOS = int(remainder // (N_shape * N_Q)) + 1
+    remainder = int(remainder % (N_shape * N_Q))
+    shape = int(remainder // (N_Q)) + 1001
+    remainder = int(remainder % (N_Q))
+    Q = remainder + 1
+    
+    #print(trial,CP,IC,LOS,shape,Q)
     
     cosmovalues = np.loadtxt('/net/GECO/nas12c/users/nmartinet/PISCO/SHEAR2COSMO/NBODYMOCKS/COSMOSLICS/cosmoslics_cosmologies.dat')
     filename='/net/GECO/nas12c/users/nmartinet/PISCO/SHEAR2COSMO/MASSMAPS/COSMOSLICS/'+str(CP).zfill(2)+'_'+str(IC)+'/GalCatalog_LOS_cone'+str(LOS)+'.fits_s1_zmin0.0_zmax3.0.fits_s'+str(shape)+'_spec0_p2.34_rout10.0_rin0.4_xc0.15_mapmap_4Q'+str(Q)+'.res'
@@ -65,15 +81,8 @@ class Builder(tfds.core.GeneratorBasedBuilder):
     # get the number of logical cpu cores
     n_cores = cpu_count()
     pool = Pool(processes=n_cores)
-    N_CP = 25
-    N_f = 2
-    N_LOS = 5#5
-    N_shape = 5#10
-    N_Q = 4
 
-    ntrial = N_CP * N_f * N_LOS * N_shape * N_Q
-
-    ntrial = 2
+    ntrial = 5_000
     
     # Generate all images at once 
     results = pool.map(_get_Map, np.arange(ntrial))
