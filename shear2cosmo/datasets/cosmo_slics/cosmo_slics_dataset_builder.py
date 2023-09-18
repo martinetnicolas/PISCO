@@ -31,19 +31,23 @@ def _get_Map(trial):
     filename='/net/GECO/nas12c/users/nmartinet/PISCO/SHEAR2COSMO/MASSMAPS/COSMOSLICS/'+str(CP).zfill(2)+'_'+str(IC)+'/GalCatalog_LOS_cone'+str(LOS)+'.fits_s1_zmin0.0_zmax3.0.fits_s'+str(shape)+'_spec0_p2.34_rout10.0_rin0.4_xc0.15_mapmap_4Q'+str(Q)+'.res'
     
     Map = np.loadtxt(filename)
-    cosmo = cosmovalues[CP]
-    #S8 = cosmo[1]
-    S8 = np.array([cosmo[1]])
+    
+    #cosmo = cosmovalues[CP]
+    #S8 = np.array([cosmo[1]])
+    
+    cosmo = np.array(cosmovalues[CP])
 
     return trial, {'Map':Map.astype(np.float32), 
-        'S8':S8.astype(np.float32)}
+        #'S8':S8.astype(np.float32)}
+        'CP':cosmo.astype(np.float32)}
 
 class Builder(tfds.core.GeneratorBasedBuilder):
   """DatasetBuilder for cosmo_slics dataset."""
 
-  VERSION = tfds.core.Version('1.0.0')
+  VERSION = tfds.core.Version('1.1.0')
   RELEASE_NOTES = {
-      '1.0.0': 'Initial release.',
+      '1.0.0': 'Initial release. Only S8',
+      '1.1.0': 'Om, S8, w, h',
   }
 
   def _info(self) -> tfds.core.DatasetInfo:
@@ -54,13 +58,14 @@ class Builder(tfds.core.GeneratorBasedBuilder):
             # These are the features of your dataset like images, labels ...
             #'e12': tfds.features.Tensor(shape=(512, 512, 2), dtype=np.float32),
             'Map': tfds.features.Tensor(shape=(128, 128), dtype=np.float32),
-            #'CP': tfds.features.Tensor(shape=(4,), dtype=np.float32),
-            'S8': tfds.features.Tensor(shape=(1,), dtype=np.float32),
+            'CP': tfds.features.Tensor(shape=(4,), dtype=np.float32),
+            #'S8': tfds.features.Tensor(shape=(1,), dtype=np.float32),
         }),
         # If there's a common (input, target) tuple from the
         # features, specify them here. They'll be used if
         # `as_supervised=True` in `builder.as_dataset`.
-        supervised_keys=('Map', 'S8'),  # Set to `None` to disable
+        #supervised_keys=('Map', 'S8'),  # Set to `None` to disable
+        supervised_keys=('Map', 'CP'),  # Set to `None` to disable
         homepage='https://dataset-homepage/',
     )
 
