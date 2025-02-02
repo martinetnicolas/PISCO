@@ -1,0 +1,65 @@
+name: PISCO
+
+channels:
+- conda-forge
+- nvidia
+- astrorama
+
+channel_priority: flexible
+
+dependencies:
+- python=3.11.*
+- ipython
+- ipykernel
+- ipywidgets
+- joblib
+- tqdm
+- commentjson
+- scipy=1.12
+- seaborn
+- matplotlib
+- plotly
+- hiplot
+- holoviews
+- bokeh
+- python-kaleido
+- jupyter_bokeh
+- panel
+- astropy
+- galsim
+- scikit-learn
+- scikit-optimize
+- cuda-nvcc
+- jax=0.4.23
+- jaxlib=0.4.23=*cuda*
+- optax
+- distrax
+- umap-learn
+- numba
+- pydantic
+- pynvml
+- tensorflow=2.15.*
+- sourcextractor=0.21
+- tensorflow-datasets
+- jupyter
+- meds
+- ngmix
+- wget
+- tensorboard
+- healpy
+- scikit-image
+- camb
+- treecorr
+- pyccl
+- ngmix
+- plum-dispatch
+- polars
+- jq
+
+- pip:
+  - flax
+  - orbax
+  - jax==0.4.23
+  - ml_dtypes==0.2.0
+  - glass==2023.7
+  - glass.ext.camb==2023.6
