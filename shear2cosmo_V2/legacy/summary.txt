@@ -1,0 +1,9 @@
+Main codes :
+
+Train_JAX_Om_S8 : Deep Learning algorithm, set-up for guessing Om and S8.
+
+sampling_pca : apply the 3 different methods based on sampling_pca
+
+glass_map_camb_test : testing cosmologies with CAMB, creates another csv without CAMB crashes
+
+umap : apply umap + colormap on 2pcf

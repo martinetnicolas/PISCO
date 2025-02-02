@@ -1,0 +1,35 @@
+{
+    "db" : "pisco_euclid",
+    "network": {
+        "versions" : ["2.0.1"],
+        "steps" : 40000,
+        "batches" : [64],
+        "styles" : [10, 11],
+        "predict" : ["shear", "ellips"] // shear or ellips
+    },
+    "architecture": {
+        "nb_cpts" : [6],
+        "nb_feats" : [256],
+        "pre_layers" : [[32]],
+        "kernel_sizes_and_pads" : [[3, 1]],
+        "layers" : [[2, 2, 2, 2], [2, 2, 2], [2, 2]]
+        }
+}
+
+// MODEL_TYPES = {
+//     1: ResNet_MuScalar,
+//     2: ResNetDistB,
+//     3: ResNetDistBD,
+//     4: ResNetDistU,
+//     5: ResNetDistUD,
+//     10: OwnResNet,
+//     11: OwnResNetD,
+//     12: OwnResNetB,
+// }
+
+// # "1.0.1": "",
+// # "1.0.2": "pixels_out",
+// # "2.0.1": "ellips uniform",
+// # "2.0.2": "ellips uniform + pixels_out",
+// # "9.9.9": small test database",
+// # hypercube + 50_000 + shear round 2 + 10 gal/patch + shear |0.05|
