@@ -1,16 +1,14 @@
 #!/bin/bash
-#SBATCH --time 00:10:00
-#SBATCH --mem 16G
-#SBATCH --ntasks-per-core 1
-#SBATCH --nodes 1         			# -N
-#SBATCH --ntasks 24       			# -n
-#SBATCH --cpus-per-task 1 			# -c
-#SBATCH -J HAGN_SE++
-#SBATCH -e logs/HAGN_%A_%a.log 		# stderr
-#SBATCH -o logs/HAGN_%A_%a.log 		# stdout
-#SBATCH --array 0-99%8
-#SBATCH --mail-type=FAIL,END  
-#SBATCH --mail-user=romain.brunet@lam.fr
+#SBATCH -J sbatch_sextractor
+#SBATCH -t 1-
+#SBATCH -w node29
+#SBATCH -p gpu
+#SBATCH --gres=gpu:a40:1
+#SBATCH --mem 20GB
+#SBATCH -o /dev/null
+#SBATCH -e /dev/null
+#SBATCH --mail-type=END,FAIL   
+#SBATCH --mail-user=romain.brunet@lam.fr 
 
 
 # Basics
@@ -19,21 +17,24 @@ micromamba activate PISCO
 GREEN='\033[0;31m'
 NC='\033[0m'
 echo -e "${GREEN}Job $0 running on $HOSTNAME with $Nth cores and version $(sourcextractor++ --version) ${NC}"
-NB_PRINT=20
-STOP_IT=2000
 
 
-# dataset wanted
+# input user
 JSON_FILE="dataset.jsonc"
 if [ -f "$JSON_FILE" ]; then
     DATA_PARENT=$(jq -r '.DATA_PARENT' "$JSON_FILE")
+    NB_PRINT=$(jq -r '.NB_PRINT' "$JSON_FILE")
+    STOP_IT=$(jq -r '.STOP_IT' "$JSON_FILE")
 else
     echo "Error: JSON config file '$JSON_FILE' not found!"
     exit 1
 fi
+echo "DATA_PARENT: $DATA_PARENT"
+echo "NB_PRINT: $NB_PRINT"
+echo "STOP_IT: $STOP_IT"
 
 
-# check if it exists
+# datasets
 ALL_DATASETS_DIR="/net/GECO/pisco/PIX2SHEAR/DATASETS/pisco_euclid"
 PSF_DIR="$ALL_DATASETS_DIR/PSF"
 RESULTS_DIR="/net/GECO/pisco/PIX2SHEAR/RESULTS_SEXTRACTOR"
