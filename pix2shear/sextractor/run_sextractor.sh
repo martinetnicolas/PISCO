@@ -1,14 +1,14 @@
 #!/bin/bash
-#SBATCH -J sbatch_sextractor
-#SBATCH -t 1-
-#SBATCH -w node29
-#SBATCH -p gpu
-#SBATCH --gres=gpu:a40:1
+#SBATCH --time 2-
+#SBATCH --nodes 1
+#SBATCH --cpus-per-task 8
+#SBATCH --ntasks-per-core 1
 #SBATCH --mem 20GB
+#SBATCH -J sbatch_SEX++
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
 #SBATCH --mail-type=END,FAIL   
-#SBATCH --mail-user=romain.brunet@lam.fr 
+#SBATCH --mail-user=romain.brunet@lam.fr
 
 
 # Basics
@@ -81,10 +81,10 @@ test -z $SLURM_NTASKS && Nth=30
 # Loop over test dataset
 counter=0
 for file_path in $DATASET_DIR/*; do
+    # names
 	file_name=$(basename "$file_path" | sed 's/\.[^.]*$//').fits
-    echo "$file_name"
-
 	general_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
+    echo "$file_name"
 
 	# algo detection et predictions
     cmd=(
@@ -107,8 +107,9 @@ for file_path in $DATASET_DIR/*; do
             --check-image-residual "${dir["IMAGES"]}/residual.fits"
         )
     fi
-    
-    "${cmd[@]}"	# Run the command
+
+    # run the command
+    "${cmd[@]}"
 
 	# saving vignettes for the first 5
 	if [[ $counter -lt $NB_PRINT ]]; then
@@ -120,7 +121,8 @@ for file_path in $DATASET_DIR/*; do
 	python extract_catalog.py ${dir["CATALOG"]}/catalog_$file_name ${dir["RESULTS"]}/$general_name.csv
 	wait
 
-    ((counter++))	# Increment counter
+    # increment counter
+    ((counter++))
 
     # too long so far
     if [[ $counter -ge $STOP_IT ]]; then
