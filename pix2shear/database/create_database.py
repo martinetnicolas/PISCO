@@ -23,37 +23,41 @@ from utils import (
 
 # USER DATA ----------------------------------------------------------------------------------------
 NB_OF_SAMPLES = 50_000
-ELLIPS_UNIFORM = True
-PIXELS_OUT = True
+ELLIPS_UNIFORM = True  # gaussian of uniform probability for ellipticities
+PIXELS_OUT = True  # use a 10 pixels band-free around the image
 SEED_G = 22
 SEED_GALAXY = 2222
-VERSION = "2.0.2"
+VERSION = "9.9.9"  # name of database created
 
-MAX_SHEARS = 0.055
-DECIMALS = 2
-NB_GALAXIES = 10
+MAX_SHEARS = 0.055  # bonds
+DECIMALS = 2  # number of decimals for SHEAR
+NB_GALAXIES = 10  # per image
 NAME_DB = f"samples{NB_OF_SAMPLES}_seed-hc{SEED_G}_seed-gal{SEED_GALAXY}_VERS{VERSION}"
 FOLDER_DATASETS = search_folder("DATASETS")
 FOLDER_RESULTS = erase_test(NAME_DB, FOLDER_DATASETS)
 print(FOLDER_RESULTS)
 
-# inverse CDFs
+# inverse CDFs for physical mg/hlr/sersic
 inv_cdf_mag, inv_cdfs_ns, inv_cdfs_hlr, cases = get_inv_cdfs(
     cdf_mag, cdf_ns_wrt_mag, cdf_hlr_wrt_mag
 )
 
 
 # DRAW LHS -----------------------------------------------------------------------------------------
-print("first LHS... ", end="")
+print("first LHS... ", end="")  # image properties
 lhs_samples = draw_lhs(2, seed=SEED_G, n_samples=NB_OF_SAMPLES)
 lhs_samples[:, :2] = numpy.round((lhs_samples[:, :2] - 0.5) / 0.5 * MAX_SHEARS, decimals=DECIMALS)
 
-print("second LHS... ", end="")
+print("second LHS... ", end="")  # galaxies properties
 lhs_samples_gal = draw_lhs(7, seed=SEED_GALAXY, n_samples=NB_OF_SAMPLES * NB_GALAXIES)
 
 print("positions galaxies LHS... ", end="")
 position_x = draw_lhs(1, seed=SEED_GALAXY * 1000, n_samples=NB_OF_SAMPLES * NB_GALAXIES)
 position_y = draw_lhs(1, seed=SEED_GALAXY * 100000000, n_samples=NB_OF_SAMPLES * NB_GALAXIES)
+
+
+# PROJECTIONS --------------------------------------------------------------------------------------
+# galaxies positions
 if PIXELS_OUT:
     new_min, new_max = 10, 342
 else:
@@ -61,8 +65,6 @@ else:
 position_x = position(position_x, new_min=new_min, new_max=new_max)
 position_y = position(position_y, new_min=new_min, new_max=new_max)
 
-
-# PROJECTIONS --------------------------------------------------------------------------------------
 # ellipticities
 if ELLIPS_UNIFORM:
     # uniform
@@ -97,7 +99,7 @@ for i, cas in enumerate(closest_half):
 min_value = abs(lhs_samples_gal[:, 5].min())
 lhs_samples_gal[:, 5] = lhs_samples_gal[:, 5] + 2 * min_value + 0.05
 
-# ns projection
+# ns
 for i, cas in enumerate(closest_half):
     value_lhs = lhs_samples_gal[:, 6][i]
     lhs_samples_gal[:, 6][i] = inv_cdfs_ns[float(cas)](value_lhs)
@@ -113,7 +115,9 @@ lhs_samples_gal[:, 6] = numpy.clip(lhs_samples_gal[:, 6], 0.3, 6.2)
 lhs_samples_gal = numpy.column_stack((lhs_samples_gal, position_x, position_y))
 folder = [FOLDER_RESULTS] * NB_OF_SAMPLES
 list_nb_gal = [NB_GALAXIES] * NB_OF_SAMPLES
-lhs_samples_gal_div = divide_per_gal_for_multiprocess(numpy.array(list_nb_gal), lhs_samples_gal)
+lhs_samples_gal_div = divide_per_gal_for_multiprocess(
+    numpy.array(list_nb_gal), lhs_samples_gal
+)  # case nb galaxies not equal to 10
 combined_args = list(zip(lhs_samples, lhs_samples_gal_div, folder))
 timei = time()
 print(f"computing with: {(number_of_cpu_used := cpu_count())} cpus")
@@ -125,8 +129,10 @@ print(f"{NB_OF_SAMPLES} simulations run in {round((time() - timei) / 60, 1)} min
 
 
 # TFDS STYLE ---------------------------------------------------------------------------------------
-DIR_OUT = FOLDER_DATASETS / "pisco_euclid" / VERSION
-builder = TransformTfds(dataset_dir=FOLDER_RESULTS, version=VERSION)
+DIR_OUT = FOLDER_DATASETS / "pisco_euclid" / VERSION  # name of database
+builder = TransformTfds(
+    dataset_dir=FOLDER_RESULTS, version=VERSION
+)  # transform in tensorflow generator
 builder._data_dir = DIR_OUT
 builder.download_and_prepare()
 print(builder.info)

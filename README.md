@@ -13,6 +13,8 @@ $ micromamba env create -f sims-environment.yml -y
 OR
 "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
 micromamba env create -f /path-to-PISCO/env_PISCO.yml
+
+micromamba config set channel_priority flexible
 ```
 
 ```bash
@@ -46,3 +48,11 @@ alias cpu32='srun -c32 -p short -t 02:00:00 --mem 20GB --pty bash -c "zsh"'
 ## Glass
 
 alias cpuGLASS='srun -c32 -p batch -t 03:00:00 --mem 80GB --pty bash -c "zsh"'
+
+## Pix2shear
+
+nico : datasets & notebooks folders
+
+database => creation + plots databases  
+networks => training + inference + plots neural networks  
+sextractor =>  run + plots sextractor

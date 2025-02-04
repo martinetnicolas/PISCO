@@ -1,5 +1,5 @@
 {
     "DATA_PARENT": "2.0.1_sextractor",
     "NB_PRINT": 20,
-    "STOP_IT": 200000000000000000000000000
+    "STOP_IT": 15000
 }

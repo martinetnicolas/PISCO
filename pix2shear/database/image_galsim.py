@@ -71,7 +71,6 @@ def create_images(index_args_tuple):
     wcs = galsim.TanWCS(affine, sky_center, units=galsim.arcsec)
     full_image.wcs = wcs
     # logger.info('Image %r and %r created',file_name,file_name_noise)
-    ######
 
     # TUNE THE SPEED OF FFT
     # slightly decrease the precision on fourrier and convolution to speed up.
@@ -82,7 +81,6 @@ def create_images(index_args_tuple):
         maxk_threshold=5.0e-3,
         folding_threshold=1.0e-2,
     )
-    ######
 
     # BUILD PSF
     psf = (
