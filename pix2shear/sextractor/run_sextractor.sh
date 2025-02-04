@@ -1,9 +1,9 @@
 #!/bin/bash
-#SBATCH --time 2-
+#SBATCH --time 1-
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 8
 #SBATCH --ntasks-per-core 1
-#SBATCH --mem 20GB
+#SBATCH --mem 40GB
 #SBATCH -J sbatch_SEX++
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
@@ -78,8 +78,8 @@ test -z $SLURM_NTASKS && Nth=30
 
 
 # Loop over test dataset
-counter=0
-for file_path in "$DATASET_DIR"/*.fits; do
+counter=1
+for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     # names
 	file_name=$(basename "$file_path" | sed 's/\.[^.]*$//').fits
 	general_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
