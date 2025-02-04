@@ -11,7 +11,7 @@
 #SBATCH --mail-user=romain.brunet@lam.fr
 
 
-# Basics
+# Activate Env PISCO
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate PISCO 
 GREEN='\033[0;31m'
@@ -52,7 +52,6 @@ if [ -d "$RESULTS_PATH" ]; then
     exit 1
 fi
 rm -f $RESULTS_DIR/log_file.log
-
 create_dir() {
     local dir=$1
     local full_path="$dir"
@@ -80,7 +79,7 @@ test -z $SLURM_NTASKS && Nth=30
 
 # Loop over test dataset
 counter=0
-for file_path in $DATASET_DIR/*; do
+for file_path in "$DATASET_DIR"/*.fits; do
     # names
 	file_name=$(basename "$file_path" | sed 's/\.[^.]*$//').fits
 	general_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
@@ -98,7 +97,7 @@ for file_path in $DATASET_DIR/*; do
         --log-level ERROR # FATAL, ERROR, WARN, INFO, DEBUG
     )
 
-	# add several stuff for the first 5
+	# add several stuff
     if [[ $counter -lt $NB_PRINT ]]; then
         cmd+=(
             --check-image-segmentation "${dir["IMAGES"]}/segmentation_$file_name"
@@ -123,8 +122,6 @@ for file_path in $DATASET_DIR/*; do
 
     # increment counter
     ((counter++))
-
-    # too long so far
     if [[ $counter -ge $STOP_IT ]]; then
         break
     fi

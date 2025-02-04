@@ -22,7 +22,7 @@ from utils import (
 )
 
 # USER DATA ----------------------------------------------------------------------------------------
-NB_OF_SAMPLES = 50_000
+NB_OF_SAMPLES = 500
 ELLIPS_UNIFORM = True  # gaussian of uniform probability for ellipticities
 PIXELS_OUT = True  # use a 10 pixels band-free around the image
 SEED_G = 22

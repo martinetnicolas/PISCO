@@ -14,10 +14,12 @@ InitFn = Callable[[Any, Iterable[int], Any], Any]
 # --------------------------------------------------------------------------------------------------
 
 
-KERNEL_STEM = 7
-KERNEL_INIT = nn.initializers.lecun_normal()
-MOMENTUM = 0.9
+KERNEL_STEM = 7  # 7x7 filter for first layer
+KERNEL_INIT = nn.initializers.lecun_normal()  # init weights
+MOMENTUM = 0.9  # decay rate for the exponential moving average of the batch statistics
+
 ACTIVATION = nn.gelu
+# ACTIVATION = nn.relu
 
 
 # --------------------------------------------------------------------------------------------------
@@ -30,7 +32,6 @@ class MaxPool(nn.Module):
     def __call__(self, x):
         x = numpy.pad(x, pad_width=[(0, 0), (1, 1), (1, 1), (0, 0)], mode="constant")
         return nn.max_pool(x, window_shape=(2, 2), strides=(2, 2))
-        # return nn.max_pool(x, window_shape=(3, 3), strides=(2, 2), padding=((1, 1), (1, 1)))
 
 
 class SkipConnectionPool(nn.Module):
@@ -140,12 +141,17 @@ class EncoderPool(nn.Module):
         return x
 
 
+# --------------------------------------------------------------------------------------------------
+# OUTPUT DISTRIBUTIONS
+# --------------------------------------------------------------------------------------------------
+
+
 class UnivariateNormal(nn.Module):
     nb_cpt: int
 
     @nn.compact
     def __call__(self, x):
-        logits_1 = nn.Dense(features=self.nb_cpt, name="logits_g1")(x)
+        logits_1 = nn.Dense(features=self.nb_cpt, name="logits_g1")(x)  # weights of gaussians dist
         mean_g1 = nn.Dense(features=self.nb_cpt, name="mean_g1")(x)
         std_g1 = 1e-5 + nn.softplus(nn.Dense(self.nb_cpt, name="std_g1")(x))
         dist_g1 = distrax.Independent(

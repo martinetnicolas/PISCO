@@ -31,15 +31,18 @@ print(f"JAX => {default_backend()}")
 BAR = slurm_mode()
 
 
+# Datasets folder
 FOLDER_DB = general_params()
 FOLDER_DATASETS = FOLDER_DB.parent
 FOLDER_RESULTS = FOLDER_DATASETS.parent / "RESULTS"
 
 
+# User inputs
 styles, batches, STEPS, versions, predicts = network_params()
 kernel_sizes_and_pads, pre_layers, layers, nb_cpts, nb_feats = architecture_params()
 
 
+# Loop over dataset
 for (
     VERSION,
     BATCH,
@@ -60,7 +63,7 @@ for (
     nb_cpts,
     nb_feats,
     predicts,
-):
+):  # iteration for all cases wanted
     model_config = {}
     model_config["style"] = STYLE
     model_config["batch"] = BATCH
@@ -74,12 +77,17 @@ for (
     model_config["nb_feat"] = NB_FEAT
     print(CASE := get_name(model_config, VERSION, PREDICT))
 
+    # Create or check if case already done
     FOLDER_CASE = FOLDER_RESULTS / CASE
     erase_test(FOLDER_CASE)
 
+    # train state
     schedule, state = create_train_state(model_config=model_config)
 
+    # stats of the dataset
     stats = read_csv(FOLDER_DB / VERSION / "statistics.csv")
+
+    # normalisation of inputs/outputs & create processing function for dataloader
     std_images = numpy.float32(stats["std"].iloc[0])
     if PREDICT == "shear":
         min = numpy.float32(stats["min_shears"].iloc[0])
@@ -94,30 +102,33 @@ for (
             preprocessing_ellips, std_images=std_images, old_min=min, old_max=max
         )
 
+    # update & eval functions wrt if univariate/multivariate/scalar outputs and the same style
     UPDATE_FUNCTION = LIST_UPDATE_FUNCTION[STYLE]
     EVAL_FUNCTION = LIST_EVAL_FUNCTION[STYLE]
 
+    # training dataloader
     train_loader = (
         tensorflow_datasets.load(
             f"pisco_euclid:{VERSION}",
-            split="train[:80%]",
+            split="train[:80%]",  # first 80% taken
             data_dir=FOLDER_DATASETS,
             shuffle_files=True,
         )
-        .repeat()
+        .repeat()  # to not stop after the network has seen the entire dataset
         .shuffle(40000, reshuffle_each_iteration=True)
-        .map(PROCESS_FUNCTION)
-        .batch(BATCH, drop_remainder=True)
-        .prefetch(-1)
+        .map(PROCESS_FUNCTION)  # wanted normalisation
+        .batch(BATCH, drop_remainder=True)  # size of batch and drop if the last one is not complete
+        .prefetch(-1)  # pre-load next batch while running
         .as_numpy_iterator()
     )
 
+    # validation dataloader
     val_loader = (
         tensorflow_datasets.load(
             f"pisco_euclid:{VERSION}",
-            split="train[80%:90%]",
+            split="train[80%:90%]",  # from 80% to 90% taken
             data_dir=FOLDER_DATASETS,
-            shuffle_files=False,
+            shuffle_files=False,  # no shuffle
         )
         .repeat()
         .map(PROCESS_FUNCTION)
@@ -130,8 +141,10 @@ for (
     early_stop = early_stopping.EarlyStopping(min_delta=1e-10, patience=100)
     start_time = time()
     for step in tqdm(range(STEPS), disable=BAR):
-        batch = next(train_loader)
-        state, loss = UPDATE_FUNCTION(state, x=numpy.nan_to_num(batch[0]), y=numpy.array(batch[1]))
+        batch = next(train_loader)  # take a batch
+        state, loss = UPDATE_FUNCTION(
+            state, x=numpy.nan_to_num(batch[0]), y=numpy.array(batch[1])
+        )  # batch[0] is the image and batch[1] is the shear or ellips
 
         if step % 100 == 0:
             list_train_loss.append(loss)
@@ -156,6 +169,8 @@ for (
     numpy.savez(
         name, train_loss=list_train_loss, val_loss=list_val_loss, steps=list_steps, time=fmt_time
     )
+
+    # pre print of losses
     data = numpy.load(name)
     loss_optimiser(
         data["train_loss"], data["val_loss"], FOLDER_CASE, steps=data["steps"], temps=data["time"]

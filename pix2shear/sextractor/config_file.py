@@ -39,7 +39,7 @@ top.split(ByKeyword("IMAGE_FILENAME"))
 measurement_group = MeasurementGroup(top)
 
 
-# Define Sersic
+# Parameters
 x, y = get_pos_parameters()
 ra, dec = get_world_position_parameters(x, y)
 rad = FreeParameter(lambda o: o.radius, Range(lambda v, o: (0.01, 2 * v), RangeType.EXPONENTIAL))

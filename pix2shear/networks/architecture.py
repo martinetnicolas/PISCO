@@ -22,10 +22,7 @@ from jax import jit, numpy, random, value_and_grad
 
 
 ResNet_18 = partial(ResNet18)
-
 mean_fn = partial(numpy.mean, axis=(1, 2))
-# mean_fn = partial(numpy.max, axis=(1, 2))
-# x = x.reshape((x.shape[0], -1))
 
 
 class ResNet_MuScalar(nn.Module):
@@ -34,9 +31,13 @@ class ResNet_MuScalar(nn.Module):
 
     @nn.compact
     def __call__(self, x):
+        # encoder
         x = ResNet_18()(x)
-        x = self.perturb("conv_1", x)
-        self.sow("intermediates", "final_conv_layer", x)
+
+        x = self.perturb("conv_1", x)  # gradcam
+        self.sow("intermediates", "final_conv_layer", x)  # cam
+
+        # mean of filters
         x = mean_fn(x)
         return nn.Dense(2, name="Dense")(x)
 
@@ -174,6 +175,7 @@ class TrainState(train_state.TrainState):
 
 
 def create_train_state(model_config):
+    # take the architecture
     if model_config["style"] < 10:
         model = MODEL_TYPES[model_config["style"]](
             nb_cpt=model_config["nb_cpt"], nb_feat=model_config["nb_feat"]
@@ -189,8 +191,10 @@ def create_train_state(model_config):
         )
     model_config = {key: numpy.array(value) for key, value in model_config.items()}
 
+    # initialisation of the JAX model
     variables = model.init(random.key(seed=22), numpy.ones([1, 352, 352, 1]))
 
+    # create optimizer/scheduler
     init_value = 0.001
     steps_and_lrs = [
         (7500, 0.5),
@@ -206,15 +210,17 @@ def create_train_state(model_config):
         init_value=init_value,
         boundaries_and_scales={step: lr for step, lr in steps_and_lrs},
     )
+    # Stochastic Gradient Descent
     optimiser = optax.adamw(learning_rate=learning_rate, weight_decay=1e-3)
 
+    # JAX style for training loop
     train_state = TrainState.create(
         apply_fn=model.apply,
         params=variables["params"],
         batch_stats=variables["batch_stats"],
         perturbations=variables["perturbations"],
         tx=optimiser,
-        model_config=model_config,
+        model_config=model_config,  # keep specific run inputs
     )
 
     return learning_rate, train_state
@@ -250,6 +256,7 @@ def load_state(folder):
 # --------------------------------------------------------------------------------------------------
 
 
+# scalar case
 @jit
 def update_model_scalar(state, x, y):
     def loss_fn_multi(params, batch_stats, perturbations):
@@ -275,6 +282,7 @@ def eval_function_scalar(state, x, y):
     return numpy.mean(numpy.sum((preds - y) ** 2, axis=-1))
 
 
+# bivariate case
 @jit
 def update_model_bivariate_normal(state, x, y):
     def loss_fn_multi(params, batch_stats, perturbations):
@@ -300,6 +308,7 @@ def eval_function_bivariate_normal(state, x, y):
     return numpy.mean(-q.log_prob(y))
 
 
+# univariate case
 @jit
 def update_model_univariate_normal(state, x, y):
     def loss_fn_uni(params, batch_stats, perturbations):
@@ -325,6 +334,7 @@ def eval_function_univariate_normal(state, x, y):
     return numpy.mean(-q1.log_prob(y[:, 0]) - q2.log_prob(y[:, 1]))
 
 
+# bivariate case with batch stats
 @jit
 def update_model_bivariate_normal_batch_stats(state, x, y):
     def loss_fn_multi(params, batch_stats):

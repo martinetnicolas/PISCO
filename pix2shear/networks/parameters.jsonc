@@ -1,14 +1,14 @@
 {
     "db" : "pisco_euclid",
     "network": {
-        "versions" : ["2.0.1"],
-        "steps" : 40000,
+        "versions" : ["9.9.9"],
+        "steps" : 40000, // nb of batches seen
         "batches" : [64],
         "styles" : [10, 11],
         "predict" : ["shear", "ellips"] // shear or ellips
     },
     "architecture": {
-        "nb_cpts" : [6],
+        "nb_cpts" : [6], // number of gaussian allowed
         "nb_feats" : [256],
         "pre_layers" : [[32]],
         "kernel_sizes_and_pads" : [[3, 1]],
