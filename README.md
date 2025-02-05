@@ -9,15 +9,13 @@ conda environment file featuring all the necessary dependencies.
 We further recommend to use the much faster and lighter micromamba instead of conda.
 
 ```bash
-$ micromamba env create -f sims-environment.yml -y
-OR
 "${SHELL}" <(curl -L micro.mamba.pm/install.sh)
-micromamba env create -f /path-to-PISCO/env_PISCO.yml
-
 micromamba config set channel_priority flexible
+micromamba env create -f /path-to-PISCO/env_PISCO.yml
 ```
 
 ```bash
+$ micromamba env create -f sims-environment.yml -y
 $ micromamba activate pisco-sims
 (pisco-sims)$ cd pisco/datasets/pisco_lsst
 (pisco-sims)$ tfds build
@@ -30,6 +28,8 @@ ml use
 ssh -L8080:localhost:8080 rbrunet@cc
 
 alias visu_lab='ssh -L8080:localhost:8080 rbrunet@cc'
+
+alias visu='tensorboard --logdir logs --load_fast=false'
 
 function mlflow_ui() {
   if [ -z "$1" ]; then
@@ -56,3 +56,5 @@ nico : datasets & notebooks folders
 database => creation + plots databases  
 networks => training + inference + plots neural networks  
 sextractor =>  run + plots sextractor
+
+

@@ -78,7 +78,7 @@ test -z $SLURM_NTASKS && Nth=30
 
 
 # Loop over test dataset
-counter=1
+counter=0
 for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     # names
 	file_name=$(basename "$file_path" | sed 's/\.[^.]*$//').fits
