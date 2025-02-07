@@ -23,11 +23,11 @@ from utils import (
 
 # USER DATA ----------------------------------------------------------------------------------------
 NB_OF_SAMPLES = 40_000
-ELLIPS_UNIFORM = False  # gaussian of uniform probability for ellipticities
+ELLIPS_UNIFORM = True  # gaussian of uniform probability for ellipticities
 PIXELS_OUT = True  # use a 10 pixels band-free around the image
 SEED_G = 22
 SEED_GALAXY = 2222
-VERSION = "1.0.1"  # name of database created
+VERSION = "1.0.2"  # name of database created
 
 MAX_SHEARS = 0.065  # bonds
 DECIMALS = 2  # number of decimals for SHEAR
