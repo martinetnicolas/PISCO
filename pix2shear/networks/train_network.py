@@ -110,7 +110,7 @@ for (
     train_loader = (
         tensorflow_datasets.load(
             f"pisco_euclid:{VERSION}",
-            split="train[:80%]",  # first 80% taken
+            split="train[:90%]",  # first 90% taken
             data_dir=FOLDER_DATASETS,
             shuffle_files=True,
         )
@@ -126,7 +126,7 @@ for (
     val_loader = (
         tensorflow_datasets.load(
             f"pisco_euclid:{VERSION}",
-            split="train[80%:90%]",  # from 80% to 90% taken
+            split="train[90%:95%]",  # from 90% to 95% taken
             data_dir=FOLDER_DATASETS,
             shuffle_files=False,  # no shuffle
         )

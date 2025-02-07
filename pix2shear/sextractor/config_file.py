@@ -1,9 +1,9 @@
-import sys
 from pathlib import Path
+from sys import argv
 
-import numpy
+from jax import numpy
 from sourcextractor.config import (
-    ByKeyword,
+    # ByKeyword,
     DependentParameter,
     FreeParameter,
     ImageGroup,
@@ -23,29 +23,29 @@ from sourcextractor.config import (
     use_iterative_fitting,
 )
 
-# ONGOING LOOP ARGS
-PSF_DIR = Path(sys.argv[1])
-FILE_NAME = str(sys.argv[2])
+## S++ PROCESSING UNIT
+PSF_DIR = Path(argv[1])
+FILE_NAME = str(argv[2])
 psf_file = PSF_DIR / "airy.psf.fits"
 GAIN = 3.1
-
-
-## S++ PROCESSING UNIT
 measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=psf_file, gain=GAIN)]
-top = ImageGroup(images=measurement_images)
-top.split(ByKeyword("IMAGE_FILENAME"))
-measurement_group = MeasurementGroup(top)
+measurement_group = MeasurementGroup(ImageGroup(measurement_images))
+# top = ImageGroup(images=measurement_images)
+# top.split(ByKeyword("IMAGE_FILENAME"))
+# measurement_group = MeasurementGroup(top)
 
 
-# PARAMETERS
-x, y = get_pos_parameters()
-rad = FreeParameter(lambda o: o.radius, Range(lambda v, o: (0.01, 2 * v), RangeType.EXPONENTIAL))
+## PARAMETERS
+x, y = get_pos_parameters()  # center of the galaxy
+rad = FreeParameter(
+    lambda o: o.radius, Range(lambda v, o: (0.01, 2 * v), RangeType.EXPONENTIAL)
+)  # effective radius: encloses 50% of the total light
 e1 = FreeParameter(0.0, Range((-0.9999, 0.9999), RangeType.LINEAR))
 e2 = FreeParameter(0.0, Range((-0.9999, 0.9999), RangeType.LINEAR))
-emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)
-angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)
-ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)
-sersic = FreeParameter(2.0, Range((0.1, 7.0), RangeType.LINEAR))
+emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag of ellip vector
+ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
+angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
+sersic = FreeParameter(2.0, Range((0.1, 7.0), RangeType.LINEAR))  # Sérsic index
 
 
 ## MODEL
@@ -56,7 +56,7 @@ set_deblend_factor(0.9)  # Usually should be close to 1, but not exactly
 set_meta_iteration_stop(0.0001)  # increase -> faster!
 ZP = 24
 flux = {}
-flux = get_flux_parameter()
+flux = get_flux_parameter()  # total flux (brightness) of the galaxy
 mag = {}
 mag = DependentParameter(lambda f, zp=ZP: zp - 2.5 * numpy.log10(f), flux)
 add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))

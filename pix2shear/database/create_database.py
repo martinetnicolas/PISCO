@@ -22,14 +22,14 @@ from utils import (
 )
 
 # USER DATA ----------------------------------------------------------------------------------------
-NB_OF_SAMPLES = 500
-ELLIPS_UNIFORM = True  # gaussian of uniform probability for ellipticities
+NB_OF_SAMPLES = 40_000
+ELLIPS_UNIFORM = False  # gaussian of uniform probability for ellipticities
 PIXELS_OUT = True  # use a 10 pixels band-free around the image
 SEED_G = 22
 SEED_GALAXY = 2222
-VERSION = "9.9.9"  # name of database created
+VERSION = "1.0.1"  # name of database created
 
-MAX_SHEARS = 0.055  # bonds
+MAX_SHEARS = 0.065  # bonds
 DECIMALS = 2  # number of decimals for SHEAR
 NB_GALAXIES = 10  # per image
 NAME_DB = f"samples{NB_OF_SAMPLES}_seed-hc{SEED_G}_seed-gal{SEED_GALAXY}_VERS{VERSION}"

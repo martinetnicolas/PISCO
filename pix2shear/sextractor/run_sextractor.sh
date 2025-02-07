@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --time 1-
 #SBATCH --nodes 1
-#SBATCH --cpus-per-task 8
+#SBATCH --cpus-per-task 16
 #SBATCH --ntasks-per-core 1
 #SBATCH --mem 40GB
 #SBATCH -J sbatch_SEX++
@@ -11,7 +11,7 @@
 #SBATCH --mail-user=romain.brunet@lam.fr
 
 
-# Activate Env PISCO
+## ACTIVATE ENV
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate PISCO 
 GREEN='\033[0;31m'
@@ -19,7 +19,7 @@ NC='\033[0m'
 echo -e "${GREEN}Job $0 running on $HOSTNAME with $Nth cores and version $(sourcextractor++ --version) ${NC}"
 
 
-# input user
+## USER INPUTS
 JSON_FILE="dataset.jsonc"
 if [ -f "$JSON_FILE" ]; then
     DATA_PARENT=$(jq -r '.DATA_PARENT' "$JSON_FILE")
@@ -34,7 +34,7 @@ echo "NB_PRINT: $NB_PRINT"
 echo "STOP_IT: $STOP_IT"
 
 
-# datasets
+## DIRECTORIES & CHECKS
 ALL_DATASETS_DIR="/net/GECO/pisco/PIX2SHEAR/DATASETS/pisco_euclid"
 PSF_DIR="$ALL_DATASETS_DIR/PSF"
 RESULTS_DIR="/net/GECO/pisco/PIX2SHEAR/RESULTS_SEXTRACTOR"
@@ -68,7 +68,7 @@ dir["CATALOG"]=$(create_dir "${dir["RESULTS_PARENT"]}/CATALOG")
 dir["RESULTS"]=$(create_dir "${dir["RESULTS_PARENT"]}/RESULTS")
 
 
-# Slurm
+# SLURM
 export MKL_NUM_THREADS=1
 export MKL_DYNAMIC="FALSE"
 export OMP_NUM_THREADS=1
@@ -77,7 +77,7 @@ Nth=$SLURM_NTASKS
 test -z $SLURM_NTASKS && Nth=30
 
 
-# Loop over test dataset
+## LOOP DATASET
 counter=0
 for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     # names

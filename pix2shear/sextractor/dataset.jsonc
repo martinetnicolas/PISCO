@@ -1,5 +1,5 @@
 {
-    "DATA_PARENT": "2.0.1_sextractor",
+    "DATA_PARENT": "2.0.2_sextractor",
     "NB_PRINT": 10,
     "STOP_IT": 1500
 }
