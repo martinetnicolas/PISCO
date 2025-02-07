@@ -81,8 +81,8 @@ test -z $SLURM_NTASKS && Nth=30
 counter=0
 for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     # names
-	file_name=$(basename "$file_path" | sed 's/\.[^.]*$//').fits
-	general_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
+    general_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
+    file_name="${general_name}.fits"
     echo "$file_name"
 
 	# algo detection et predictions
@@ -101,9 +101,9 @@ for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     if [[ $counter -lt $NB_PRINT ]]; then
         cmd+=(
             --check-image-segmentation "${dir["IMAGES"]}/segmentation_$file_name"
-            --check-image-background "${dir["IMAGES"]}/background_$file_name"
             --check-image-model-fitting "${dir["IMAGES"]}/fitting.fits"
             --check-image-residual "${dir["IMAGES"]}/residual.fits"
+            --check-image-background "${dir["IMAGES"]}/background_$file_name"
         )
     fi
 
