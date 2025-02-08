@@ -337,3 +337,13 @@ def style_norma(data, style, directory):
     pyplot.axvline((x_min + x_max) / 2, color="r", linestyle="--", linewidth=2)
     pyplot.yscale("log")
     pyplot.savefig(directory / f"normalisation_{style}.pdf", dpi=300)
+
+
+def before_after(img, directory):
+    pyplot.subplot(121)
+    pyplot.imshow(img)
+    pyplot.title("Before")
+    pyplot.subplot(122)
+    pyplot.imshow(numpy.arcsinh(img / 3.14 / 3))
+    pyplot.title("After")
+    pyplot.savefig(directory / "before_after.pdf", dpi=300)
