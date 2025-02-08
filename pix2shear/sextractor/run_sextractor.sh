@@ -83,7 +83,6 @@ for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     # names
     general_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
     file_name="${general_name}.fits"
-    echo "$file_name"
 
 	# algo detection et predictions
     cmd=(
@@ -101,9 +100,9 @@ for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     if [[ $counter -lt $NB_PRINT ]]; then
         cmd+=(
             --check-image-segmentation "${dir["IMAGES"]}/segmentation_$file_name"
+            --check-image-background "${dir["IMAGES"]}/background_$file_name"
             --check-image-model-fitting "${dir["IMAGES"]}/fitting.fits"
             --check-image-residual "${dir["IMAGES"]}/residual.fits"
-            --check-image-background "${dir["IMAGES"]}/background_$file_name"
         )
     fi
 

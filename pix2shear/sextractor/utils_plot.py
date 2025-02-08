@@ -83,11 +83,10 @@ def plot_sersic(X_min, X_max, directory):
     fig.savefig(directory / "sersic.pdf", dpi=300)
 
 
-def histo_err(diff_e1, diff_e2, directory):
+def histo_err(diff_e1, diff_e2, directory, bins, temp):
     _, ax = pyplot.subplots(figsize=(5, 5))
-    pyplot.hist(diff_e1, bins=50, alpha=0.7, label="Diff e1", color="blue")
-    pyplot.hist(diff_e2, bins=50, alpha=0.7, label="Diff e2", color="red")
-    temp = 0.05
+    pyplot.hist(diff_e1, bins=bins, alpha=0.7, label="Diff e1", color="blue")
+    pyplot.hist(diff_e2, bins=bins, alpha=0.7, label="Diff e2", color="red")
     ax.set_xlim(-temp, temp)
     pyplot.legend()
     pyplot.savefig(directory / "sersic.pdf", dpi=300)

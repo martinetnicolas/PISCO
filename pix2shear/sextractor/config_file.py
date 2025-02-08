@@ -1,9 +1,8 @@
 from pathlib import Path
 from sys import argv
 
-from jax import numpy
+import numpy
 from sourcextractor.config import (
-    # ByKeyword,
     DependentParameter,
     FreeParameter,
     ImageGroup,
@@ -29,10 +28,7 @@ FILE_NAME = str(argv[2])
 psf_file = PSF_DIR / "airy.psf.fits"
 GAIN = 3.1
 measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=psf_file, gain=GAIN)]
-measurement_group = MeasurementGroup(ImageGroup(measurement_images))
-# top = ImageGroup(images=measurement_images)
-# top.split(ByKeyword("IMAGE_FILENAME"))
-# measurement_group = MeasurementGroup(top)
+measurement_group = MeasurementGroup(ImageGroup(images=measurement_images))
 
 
 ## PARAMETERS

@@ -139,6 +139,7 @@ print(builder.info)
 
 
 # USELESS FOLDERS ----------------------------------------------------------------------------------
+print("deleting original folders...")
 useless_folder = Path("/home/rbrunet/tensorflow_datasets")
 if useless_folder.exists():
     shutil.rmtree(useless_folder)
