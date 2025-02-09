@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task 16
 #SBATCH --ntasks-per-core 1
 #SBATCH --mem 40GB
-#SBATCH -J sbatch_SEX++
+#SBATCH -J sbatch_SEXTRACTOR++_1
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
 #SBATCH --mail-type=END,FAIL   

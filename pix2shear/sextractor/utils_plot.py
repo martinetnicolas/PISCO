@@ -83,24 +83,6 @@ def plot_sersic(X_min, X_max, directory):
     fig.savefig(directory / "sersic.pdf", dpi=300)
 
 
-def histo_err(diff_e1, diff_e2, directory, bins, temp):
-    _, ax = pyplot.subplots(figsize=(5, 5))
-    pyplot.hist(diff_e1, bins=bins, alpha=0.7, label="Diff e1", color="blue")
-    pyplot.hist(diff_e2, bins=bins, alpha=0.7, label="Diff e2", color="red")
-    ax.set_xlim(-temp, temp)
-    pyplot.legend()
-    pyplot.savefig(directory / "sersic.pdf", dpi=300)
-    pyplot.show()
-
-
-def hist_gal(data, nb_not_detected, directory):
-    pyplot.hist(data, bins=5, edgecolor="black", label="galaxies detected")
-    pyplot.legend()
-    pyplot.title(f"{nb_not_detected} not correct")
-    pyplot.savefig(directory / "detected_gal.pdf", dpi=300)
-    pyplot.show()
-
-
 def final_results(true_e, pred_e, shears, directory):
     s = 10
     alpha = 0.2
@@ -164,4 +146,22 @@ def final_results(true_e, pred_e, shears, directory):
         ax.legend()
 
     fig.tight_layout()
-    fig.savefig(directory / "results_sextractor.pdf", dpi=300)
+    fig.savefig(directory, dpi=300)
+
+
+def histos(diff_e1, diff_e2, data_gal, nb_not_detected, directory, bins):
+    fig, axes = pyplot.subplots(1, 3, figsize=(15, 5))
+
+    axes[0].hist(abs(diff_e1), bins=bins, label="Diff e1", color="blue")
+    axes[1].hist(abs(diff_e2), bins=bins, label="Diff e2", color="red")
+    axes[2].hist(data_gal, bins=7, edgecolor="black", label=f"correct detections {nb_not_detected}")
+
+    for ax in axes:
+        ax.set_yscale("log")
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Frequency")
+        ax.legend()
+
+    fig.tight_layout()
+    fig.savefig(directory / "errors.pdf", dpi=300)
+    fig.show()
