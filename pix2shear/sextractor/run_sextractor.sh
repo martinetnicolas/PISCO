@@ -3,12 +3,21 @@
 #SBATCH --nodes 1
 #SBATCH --cpus-per-task 16
 #SBATCH --ntasks-per-core 1
-#SBATCH --mem 40GB
+#SBATCH --mem 10GB
 #SBATCH -J sbatch_SEXTRACTOR++_1
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
 #SBATCH --mail-type=END,FAIL   
 #SBATCH --mail-user=romain.brunet@lam.fr
+
+
+# SLURM
+export MKL_NUM_THREADS=1
+export MKL_DYNAMIC="FALSE"
+export OMP_NUM_THREADS=1
+export OMP_DYNAMIC="FALSE"
+Nth=$SLURM_NTASKS
+test -z $SLURM_NTASKS && Nth=30
 
 
 ## ACTIVATE ENV
@@ -66,15 +75,6 @@ dir["VIGNET"]=$(create_dir "${dir["RESULTS_PARENT"]}/VIGNET")
 dir["IMAGES"]=$(create_dir "${dir["RESULTS_PARENT"]}/IMAGES")
 dir["CATALOG"]=$(create_dir "${dir["RESULTS_PARENT"]}/CATALOG")
 dir["RESULTS"]=$(create_dir "${dir["RESULTS_PARENT"]}/RESULTS")
-
-
-# SLURM
-export MKL_NUM_THREADS=1
-export MKL_DYNAMIC="FALSE"
-export OMP_NUM_THREADS=1
-export OMP_DYNAMIC="FALSE"
-Nth=$SLURM_NTASKS
-test -z $SLURM_NTASKS && Nth=30
 
 
 ## LOOP DATASET

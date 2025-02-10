@@ -45,7 +45,7 @@ def check_psf(file, directory):
 
 def print_fits(names, titles, directory, func=numpy.arcsinh):
     fig, axes = pyplot.subplots(2, 4, figsize=(20, 8))
-    fig.suptitle("FITS Image Grid", fontsize=16)
+    # fig.suptitle("FITS Images", fontsize=16)
 
     for i, ax in enumerate(axes.flat):
         if i < len(names):

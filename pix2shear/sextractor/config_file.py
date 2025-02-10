@@ -29,6 +29,7 @@ GAIN = 3.1
 measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=PSF_DIR, gain=GAIN)]
 measurement_group = MeasurementGroup(ImageGroup(images=measurement_images))
 
+# SURECHANTILLONER PSF!!!!!!!!!!!!!!!!!!!!
 
 ## PARAMETERS
 x, y = get_pos_parameters()  # center of the galaxy
@@ -55,6 +56,8 @@ flux = get_flux_parameter()  # total flux (brightness) of the galaxy
 mag = {}
 mag = DependentParameter(lambda f, zp=ZP: zp - 2.5 * numpy.log10(f), flux)
 add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))
+# X_sersic = DependentParameter(lambda n: numpy.log((n - 0.25) / (10 - n)), sersic)  # stability?
+# add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, X_sersic))  # stability?
 
 
 ## OUTPUTS
@@ -66,8 +69,3 @@ add_output_column("angle", angle)
 add_output_column("e1", e1)
 add_output_column("e2", e2)
 add_output_column("sersic", sersic)
-
-
-# test for stability?
-# X_sersic = DependentParameter(lambda n: numpy.log((n - 0.25) / (10 - n)), sersic)
-# add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, X_sersic))
