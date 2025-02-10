@@ -149,12 +149,12 @@ def final_results(true_e, pred_e, shears, directory):
     fig.savefig(directory, dpi=300)
 
 
-def histos(diff_e1, diff_e2, data_gal, nb_not_detected, directory, bins):
+def histos(diff_e1, diff_e2, data_gal, nb_detected, directory, bins):
     fig, axes = pyplot.subplots(1, 3, figsize=(15, 5))
 
     axes[0].hist(abs(diff_e1), bins=bins, label="Diff e1", color="blue")
     axes[1].hist(abs(diff_e2), bins=bins, label="Diff e2", color="red")
-    axes[2].hist(data_gal, bins=7, edgecolor="black", label=f"correct detections {nb_not_detected}")
+    axes[2].hist(data_gal, bins=7, edgecolor="black", label=f"correct detections {nb_detected}")
 
     for ax in axes:
         ax.set_yscale("log")

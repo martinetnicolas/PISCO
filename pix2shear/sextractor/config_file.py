@@ -41,7 +41,6 @@ emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
 sersic = FreeParameter(2.0, Range((0.1, 7.0), RangeType.LINEAR))  # Sérsic index
-X_sersic = DependentParameter(lambda n: numpy.log((n - 0.25) / (10 - n)), sersic)
 
 
 ## MODEL
@@ -55,8 +54,7 @@ flux = {}
 flux = get_flux_parameter()  # total flux (brightness) of the galaxy
 mag = {}
 mag = DependentParameter(lambda f, zp=ZP: zp - 2.5 * numpy.log10(f), flux)
-# add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))
-add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, X_sersic))
+add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))
 
 
 ## OUTPUTS
@@ -68,3 +66,8 @@ add_output_column("angle", angle)
 add_output_column("e1", e1)
 add_output_column("e2", e2)
 add_output_column("sersic", sersic)
+
+
+# test for stability?
+# X_sersic = DependentParameter(lambda n: numpy.log((n - 0.25) / (10 - n)), sersic)
+# add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, X_sersic))
