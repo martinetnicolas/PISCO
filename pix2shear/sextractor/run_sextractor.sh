@@ -108,14 +108,15 @@ for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     # run the command
     "${cmd[@]}"
 
-	# saving vignettes for the first 5
-	if [[ $counter -lt $NB_PRINT ]]; then
-		python save_vignet.py ${dir["CATALOG"]} ${dir["VIGNET"]} $general_name
-	fi
-	wait
+	# # saving vignettes for the first 5
+	# if [[ $counter -lt $NB_PRINT ]]; then
+	# 	python save_vignet.py ${dir["CATALOG"]} ${dir["VIGNET"]} $general_name
+	# fi
+	# wait
 
 	# saving galaxies parameters
-	python extract_catalog.py ${dir["CATALOG"]}/catalog_$file_name ${dir["CATALOG"]}/catalog_$general_name.csv
+	# python extract_catalog.py ${dir["CATALOG"]} ${dir["CATALOG"]}/catalog_$file_name ${dir["CATALOG"]}/catalog_$general_name.csv
+	python extract_catalog.py ${dir["CATALOG"]} catalog_$file_name catalog_$general_name.csv
 	wait
 
     # increment counter
