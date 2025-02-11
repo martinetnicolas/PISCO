@@ -15,7 +15,11 @@ SIMU_VIGNET_DIR.mkdir(parents=True, exist_ok=True)
 # Get 3D vignet data
 all_results = fits.open(CATALOG_DIR / f"catalog_{name_simu}.fits")
 bin_table_hdu = all_results[1]
-all_vignettes = bin_table_hdu.data["Vignet"]
+all_vignettes = bin_table_hdu.data["vignet"]
+
+print(f"Type of all_vignettes: {type(all_vignettes)}")
+print(f"Shape of all_vignettes: {all_vignettes.shape}")
+print(f"Type of all_vignettes[0]: {(all_vignettes[0])}")
 
 # Write results
 for i in range(all_vignettes.shape[0]):

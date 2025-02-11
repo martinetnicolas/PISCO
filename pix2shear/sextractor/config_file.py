@@ -12,7 +12,7 @@ from sourcextractor.config import (
     RangeType,
     SersicModel,
     add_model,
-    add_output_column,
+    # add_output_column,
     get_flux_parameter,
     get_pos_parameters,
     set_deblend_factor,
@@ -29,7 +29,6 @@ GAIN = 3.1
 measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=PSF_DIR, gain=GAIN)]
 measurement_group = MeasurementGroup(ImageGroup(images=measurement_images))
 
-# SURECHANTILLONER PSF!!!!!!!!!!!!!!!!!!!!
 
 ## PARAMETERS
 x, y = get_pos_parameters()  # center of the galaxy
@@ -61,11 +60,11 @@ add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))
 
 
 ## OUTPUTS
-add_output_column("mag_EUCLID_LIKE", mag)
-add_output_column("x", x)
-add_output_column("y", y)
-add_output_column("ratio", ratio)
-add_output_column("angle", angle)
-add_output_column("e1", e1)
-add_output_column("e2", e2)
-add_output_column("sersic", sersic)
+# add_output_column("mag_EUCLID_LIKE", mag)
+# add_output_column("x", x)
+# add_output_column("y", y)
+# add_output_column("ratio", ratio)
+# add_output_column("angle", angle)
+# add_output_column("e1", e1)
+# add_output_column("e2", e2)
+# add_output_column("sersic", sersic)

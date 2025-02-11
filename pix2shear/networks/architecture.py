@@ -20,7 +20,7 @@ from jax import jit, numpy, random, value_and_grad
 # NETWORK SCALAR & DISTRIBUTION
 # --------------------------------------------------------------------------------------------------
 
-
+# x = jax.lax.stop_gradient(x)
 ResNet_18 = partial(ResNet18)
 mean_fn = partial(numpy.mean, axis=(1, 2))
 

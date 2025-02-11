@@ -74,7 +74,6 @@ dir["RESULTS_PARENT"]=$(create_dir "$RESULTS_PATH")
 dir["VIGNET"]=$(create_dir "${dir["RESULTS_PARENT"]}/VIGNET")
 dir["IMAGES"]=$(create_dir "${dir["RESULTS_PARENT"]}/IMAGES")
 dir["CATALOG"]=$(create_dir "${dir["RESULTS_PARENT"]}/CATALOG")
-dir["RESULTS"]=$(create_dir "${dir["RESULTS_PARENT"]}/RESULTS")
 
 
 ## LOOP DATASET
@@ -116,7 +115,7 @@ for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
 	wait
 
 	# saving galaxies parameters
-	python extract_catalog.py ${dir["CATALOG"]}/catalog_$file_name ${dir["RESULTS"]}/$general_name.csv
+	python extract_catalog.py ${dir["CATALOG"]}/catalog_$file_name ${dir["CATALOG"]}/catalog_$general_name.csv
 	wait
 
     # increment counter
