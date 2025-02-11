@@ -50,7 +50,8 @@ RESULTS_DIR="/net/GECO/pisco/PIX2SHEAR/RESULTS_SEXTRACTOR"
 WORKING_DIR=$(pwd)
 if [ -d "$ALL_DATASETS_DIR/$DATA_PARENT" ]; then
     DATASET_DIR="$ALL_DATASETS_DIR/$DATA_PARENT"
-    echo "Using dataset: $DATASET_DIR"
+    NB_FILES=$(find "$DATASET_DIR" -maxdepth 1 -type f -name "*.fits" | wc -l)
+    echo "Using dataset: $DATASET_DIR with $NB_FILES files"
 else
     echo "Error: Directory '$ALL_DATASETS_DIR/$DATA_PARENT' does not exist!"
     exit 1
@@ -71,7 +72,6 @@ create_dir() {
 }
 declare -A dir
 dir["RESULTS_PARENT"]=$(create_dir "$RESULTS_PATH")
-dir["VIGNET"]=$(create_dir "${dir["RESULTS_PARENT"]}/VIGNET")
 dir["IMAGES"]=$(create_dir "${dir["RESULTS_PARENT"]}/IMAGES")
 dir["CATALOG"]=$(create_dir "${dir["RESULTS_PARENT"]}/CATALOG")
 
@@ -79,18 +79,17 @@ dir["CATALOG"]=$(create_dir "${dir["RESULTS_PARENT"]}/CATALOG")
 ## LOOP DATASET
 counter=0
 for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
-    # names
-    general_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
-    file_name="${general_name}.fits"
+    simu_name=$(basename "$file_path" | sed 's/\.[^.]*$//')
+    echo "Processing $simu_name ($((counter+1))/$NB_FILES)"
 
 	# algo detection et predictions
     cmd=(
         sourcextractor++
         --config-file my_sepp.config
         --thread-count "$Nth"
-        --detection-image "$DATASET_DIR/$file_name"
-        --python-config-file "$WORKING_DIR/config_file.py" "$PSF_DIR" "$DATASET_DIR/$file_name"
-        --output-catalog-filename "${dir["CATALOG"]}/catalog_$file_name"
+        --detection-image "$DATASET_DIR/$simu_name.fits"
+        --python-config-file "$WORKING_DIR/config_file.py" "$PSF_DIR" "$DATASET_DIR/$simu_name.fits"
+        --output-catalog-filename "${dir["CATALOG"]}/catalog_$simu_name.fits"
         --log-file "${dir["RESULTS_PARENT"]}/log_file.log"
         --log-level ERROR # FATAL, ERROR, WARN, INFO, DEBUG
     )
@@ -98,8 +97,8 @@ for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
 	# add several stuff
     if [[ $counter -lt $NB_PRINT ]]; then
         cmd+=(
-            --check-image-segmentation "${dir["IMAGES"]}/segmentation_$file_name"
-            --check-image-background "${dir["IMAGES"]}/background_$file_name"
+            --check-image-segmentation "${dir["IMAGES"]}/segmentation_$simu_name.fits"
+            --check-image-background "${dir["IMAGES"]}/background_$simu_name.fits"
             --check-image-model-fitting "${dir["IMAGES"]}/fitting.fits"
             --check-image-residual "${dir["IMAGES"]}/residual.fits"
         )
@@ -108,15 +107,8 @@ for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     # run the command
     "${cmd[@]}"
 
-	# # saving vignettes for the first 5
-	# if [[ $counter -lt $NB_PRINT ]]; then
-	# 	python save_vignet.py ${dir["CATALOG"]} ${dir["VIGNET"]} $general_name
-	# fi
-	# wait
-
-	# saving galaxies parameters
-	# python extract_catalog.py ${dir["CATALOG"]} ${dir["CATALOG"]}/catalog_$file_name ${dir["CATALOG"]}/catalog_$general_name.csv
-	python extract_catalog.py ${dir["CATALOG"]} catalog_$file_name catalog_$general_name.csv
+	# saving vignettes & galaxies parameters
+	python extract_catalog.py ${dir["CATALOG"]} ${dir["IMAGES"]} $simu_name $counter $NB_PRINT
 	wait
 
     # increment counter
@@ -124,5 +116,7 @@ for file_path in $(ls "$DATASET_DIR"/*.fits | sort -V); do
     if [[ $counter -ge $STOP_IT ]]; then
         break
     fi
-
 done
+
+# erase the .fits files
+rm -f "${dir["CATALOG"]}"/*.fits
