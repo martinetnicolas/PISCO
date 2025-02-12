@@ -12,11 +12,10 @@ from sourcextractor.config import (
     RangeType,
     SersicModel,
     add_model,
-    # add_output_column,
+    add_output_column,
     get_flux_parameter,
     get_pos_parameters,
     set_deblend_factor,
-    set_max_iterations,
     set_meta_iteration_stop,
     set_meta_iterations,
     use_iterative_fitting,
@@ -46,7 +45,6 @@ sersic = FreeParameter(2.0, Range((0.1, 7.0), RangeType.LINEAR))  # Sérsic inde
 ## MODEL
 use_iterative_fitting(True)
 set_meta_iterations(3)
-set_max_iterations(150)
 set_deblend_factor(0.9)  # Usually should be close to 1, but not exactly
 set_meta_iteration_stop(0.0001)  # increase -> faster!
 ZP = 24
@@ -55,16 +53,11 @@ flux = get_flux_parameter()  # total flux (brightness) of the galaxy
 mag = {}
 mag = DependentParameter(lambda f, zp=ZP: zp - 2.5 * numpy.log10(f), flux)
 add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))
-# X_sersic = DependentParameter(lambda n: numpy.log((n - 0.25) / (10 - n)), sersic)  # stability?
-# add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, X_sersic))  # stability?
 
 
-## OUTPUTS
-# add_output_column("mag_EUCLID_LIKE", mag)
-# add_output_column("x", x)
-# add_output_column("y", y)
-# add_output_column("ratio", ratio)
-# add_output_column("angle", angle)
-# add_output_column("e1", e1)
-# add_output_column("e2", e2)
-# add_output_column("sersic", sersic)
+## ADDITIONAL OUTPUTS
+add_output_column("ratio", ratio)
+add_output_column("angle", angle)
+add_output_column("e1", e1)
+add_output_column("e2", e2)
+add_output_column("sersic", sersic)
