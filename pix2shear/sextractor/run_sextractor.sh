@@ -1,12 +1,11 @@
 #!/bin/bash
-
-#SBATCH --time 00:10:00
+#SBATCH --time 00:05:00
 #SBATCH --mem 5G
 #SBATCH --ntasks-per-core 1
 #SBATCH --nodes 1
 #SBATCH --ntasks 1
 #SBATCH --cpus-per-task 1
-#SBATCH --job-name DynamicArray
+#SBATCH --job-name SEXTRACTOR++_PARALLEL
 #SBATCH --array=0-1999%125  # Run 2000 tasks in parallel, 125 at a time (max cc LAM)
 #SBATCH --mail-type=END,FAIL   
 #SBATCH --mail-user=romain.brunet@lam.fr
@@ -17,7 +16,7 @@
 
 
 ## USER INPUTS
-DATA_PARENT="1.0.1_sextractor" # Directory containing the FITS files
+DATA_PARENT="1.0.3_sextractor" # Directory containing the FITS files
 NB_EXTRA=5 # Number of simulations to save check images
 echo "DATA_PARENT: $DATA_PARENT"
 ALL_DATASETS_DIR="/net/GECO/pisco/PIX2SHEAR/DATASETS/pisco_euclid"

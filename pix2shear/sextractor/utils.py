@@ -5,7 +5,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from polars import read_csv
 
 
-def compute_ellipticities(a, b, theta):
+def compute_ellips_ab_theta(a, b, theta):
     rad = numpy.deg2rad(theta)
     e = (a**2 - b**2) / (a**2 + b**2)
     e1 = e * numpy.cos(2 * rad)
@@ -13,12 +13,12 @@ def compute_ellipticities(a, b, theta):
     return e1, e2
 
 
-def compute_ellipticities_ratio_angle(ratio, angle):
+def compute_ellips_ratio_angle(ratio, angle):
     e = (1 - ratio) / (1 + ratio)
     return e * numpy.cos(2 * angle), e * numpy.sin(2 * angle)
 
 
-def compute_ellipticities_quadratic(cxx, cyy, cxy):
+def compute_ellips_quadratic(cxx, cyy, cxy):
     denominator = cxx + cyy
     e1 = (cxx - cyy) / denominator
     e2 = (2 * cxy) / denominator
@@ -53,6 +53,7 @@ def plot_vignettes(directory, csv_file, vignettes_file):
         pyplot.colorbar(img, cax=cax1)
         axes[i].axis("off")
 
+    axes[0].axis("on")
     for j in range(vignettes.shape[0], 12):
         axes[j].axis("off")
 
@@ -117,25 +118,59 @@ def plot_sersic(X_min, X_max, directory):
     fig.savefig(directory / "log_sersic.pdf", dpi=300)
 
 
-def final_results(true_e, pred_e, shears, directory):
+def best_results(true_e, shears, directory):
     s = 10
     alpha = 0.2
     c1, c2 = "C0", "C1"
     t = numpy.linspace(shears.min(), shears.max())
-    max_plot1 = max(numpy.max(true_e - shears), numpy.max(pred_e - shears))
-    max_plot2 = max(numpy.max(pred_e), numpy.max(true_e))
-
-    diff_pred_g1 = pred_e[:, 0] - shears[:, 0]
-    diff_pred_g2 = pred_e[:, 1] - shears[:, 1]
-    poly_g1 = numpy.polyfit(shears[:, 0], diff_pred_g1, 1)
-    poly_g2 = numpy.polyfit(shears[:, 1], diff_pred_g2, 1)
 
     res_true_g1 = true_e[:, 0] - shears[:, 0]
     res_true_g2 = true_e[:, 1] - shears[:, 1]
     poly_g1_true = numpy.polyfit(shears[:, 0], res_true_g1, 1)
     poly_g2_true = numpy.polyfit(shears[:, 1], res_true_g2, 1)
 
-    fig, axes = pyplot.subplots(2, 2, figsize=(15, 10))
+    fig, axes = pyplot.subplots(1, 2, figsize=(15, 5))
+    axes = axes.flatten()
+
+    lab_1 = f"m= {poly_g1_true[0]:.3f}, c={poly_g1_true[1]:.3f}"
+    axes[0].scatter(shears[:, 0], res_true_g1, alpha=alpha, color=c1, marker="x", s=s, label=lab_1)
+    lab_2 = f"m= {poly_g2_true[0]:.3f}, c={poly_g2_true[1]:.3f}"
+    axes[0].scatter(shears[:, 1], res_true_g2, alpha=alpha, color=c2, marker="o", s=s, label=lab_2)
+    axes[0].plot(t, poly_g1_true[1] + poly_g1_true[0] * t, color=c1)
+    axes[0].plot(t, poly_g2_true[1] + poly_g2_true[0] * t, color=c2)
+
+    axes[1].scatter(shears[:, 0], true_e[:, 0], alpha=alpha, color=c1, marker="x", s=s)
+    axes[1].scatter(shears[:, 1], true_e[:, 1], alpha=alpha, color=c2, marker="o", s=s)
+    lims = axes[1].get_xlim()
+    axes[1].plot(lims, lims, color="black", linestyle="--", linewidth=1, label="y=x")
+
+    axes[0].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
+
+    axes[0].set_ylabel(r"$\epsilon^{{true}}$ - $\gamma^{{true}}$", rotation=0, labelpad=20)
+    axes[1].set_ylabel(r"$\epsilon^{{true}}$", rotation=0, labelpad=20)
+
+    for ax in axes:
+        ax.set_xlim(-0.055, 0.055)
+        ax.set_xlabel(r"$\gamma^{true}$")
+        ax.legend()
+
+    fig.suptitle("Best Results Possible", fontsize=16)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    fig.savefig(directory, dpi=300)
+
+
+def case_results(pred_e, shears, directory):
+    s = 10
+    alpha = 0.2
+    c1, c2 = "C0", "C1"
+    t = numpy.linspace(shears.min(), shears.max())
+
+    diff_pred_g1 = pred_e[:, 0] - shears[:, 0]
+    diff_pred_g2 = pred_e[:, 1] - shears[:, 1]
+    poly_g1 = numpy.polyfit(shears[:, 0], diff_pred_g1, 1)
+    poly_g2 = numpy.polyfit(shears[:, 1], diff_pred_g2, 1)
+
+    fig, axes = pyplot.subplots(1, 2, figsize=(15, 5))
     axes = axes.flatten()
 
     lab_1 = f"m= {poly_g1[0]:.3f}, c={poly_g1[1]:.3f}"
@@ -144,41 +179,24 @@ def final_results(true_e, pred_e, shears, directory):
     axes[0].scatter(shears[:, 1], diff_pred_g2, alpha=alpha, color=c2, marker="o", s=s, label=lab_2)
     axes[0].plot(t, poly_g1[1] + poly_g1[0] * t, color=c1)
     axes[0].plot(t, poly_g2[1] + poly_g2[0] * t, color=c2)
-    axes[0].set_ylim(-max_plot1, max_plot1)
 
     axes[1].scatter(shears[:, 0], pred_e[:, 0], alpha=alpha, color=c1, marker="x", s=s)
     axes[1].scatter(shears[:, 1], pred_e[:, 1], alpha=alpha, color=c2, marker="o", s=s)
     lims = axes[1].get_xlim()
     axes[1].plot(lims, lims, color="black", linestyle="--", linewidth=1, label="y=x")
-    axes[1].set_ylim(-max_plot2, max_plot2)
-
-    lab_3 = f"m= {poly_g1_true[0]:.3f}, c={poly_g1_true[1]:.3f}"
-    axes[2].scatter(shears[:, 0], res_true_g1, alpha=alpha, color=c1, marker="x", s=s, label=lab_3)
-    lab_4 = f"m= {poly_g2_true[0]:.3f}, c={poly_g2_true[1]:.3f}"
-    axes[2].scatter(shears[:, 1], res_true_g2, alpha=alpha, color=c2, marker="o", s=s, label=lab_4)
-    axes[2].plot(t, poly_g1_true[1] + poly_g1_true[0] * t, color=c1)
-    axes[2].plot(t, poly_g2_true[1] + poly_g2_true[0] * t, color=c2)
-    axes[2].set_ylim(-max_plot1, max_plot1)
-
-    axes[3].scatter(shears[:, 0], true_e[:, 0], alpha=alpha, color=c1, marker="x", s=s)
-    axes[3].scatter(shears[:, 1], true_e[:, 1], alpha=alpha, color=c2, marker="o", s=s)
-    lims = axes[3].get_xlim()
-    axes[3].plot(lims, lims, color="black", linestyle="--", linewidth=1, label="y=x")
-    axes[3].set_ylim(-max_plot2, max_plot2)
 
     axes[0].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
-    axes[2].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
 
     axes[0].set_ylabel(r"$\epsilon^{{obs}}$ - $\gamma^{{true}}$", rotation=0, labelpad=20)
     axes[1].set_ylabel(r"$\epsilon^{{obs}}$", rotation=0, labelpad=20)
-    axes[2].set_ylabel(r"$\epsilon^{{true}}$ - $\gamma^{{true}}$", rotation=0, labelpad=20)
-    axes[3].set_ylabel(r"$\epsilon^{{true}}$", rotation=0, labelpad=20)
 
     for ax in axes:
         ax.set_xlim(-0.055, 0.055)
         ax.set_xlabel(r"$\gamma^{true}$")
         ax.legend()
 
+    fig.suptitle(f"{directory.name}", fontsize=16)
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
     fig.tight_layout()
     fig.savefig(directory, dpi=300)
 
@@ -197,5 +215,5 @@ def histos(diff_e1, diff_e2, data_gal, directory, bins):
         ax.legend()
 
     fig.tight_layout()
-    fig.savefig(directory / "errors.pdf", dpi=300)
+    fig.savefig(directory, dpi=300)
     fig.show()
