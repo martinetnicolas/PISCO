@@ -1,4 +1,4 @@
-from jax import numpy
+import numpy
 from polars import read_csv
 
 

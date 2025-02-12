@@ -15,9 +15,11 @@ counter = argv[4]
 nb_max = argv[5]
 
 # read sextractor catalog results
-catalog = table.Table.read(CATALOG_DIR / f"catalog_{simu_name}.fits", format="fits")
+fits_file = CATALOG_DIR / f"catalog_{simu_name}.fits"
+catalog = table.Table.read(fits_file, format="fits")
+fits_file.unlink()  # delete fits file
 
-# save vignettes
+# save vignet for the first images
 if counter < nb_max:
     vignet_data = catalog["vignet"]
     hdu = io.fits.PrimaryHDU(vignet_data)

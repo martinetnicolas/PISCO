@@ -1,5 +1,5 @@
+import numpy
 from astropy.io import fits
-from jax import numpy
 from matplotlib import pyplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from utils import X_sersic
