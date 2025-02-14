@@ -72,16 +72,19 @@ def vignettes(directory, csv_file, vignettes_file):
 
 def check_psf(file, directory):
     img_psf = fits.open(file)[0].data
+
     fig, axes = pyplot.subplots(1, 2, figsize=(12, 6))
     im1 = axes[0].imshow(numpy.log(img_psf.astype(numpy.float32)), cmap="gray")
     axes[0].set_title("Airy Logarithmic Scale")
     divider = make_axes_locatable(axes[0])
     cax1 = divider.append_axes("right", size="5%", pad=0.05)
     pyplot.colorbar(im1, cax=cax1)
+
     im2 = axes[1].imshow(img_psf, cmap="gray")
     axes[1].set_title("Airy Linear Scale")
     divider = make_axes_locatable(axes[1])
     cax2 = divider.append_axes("right", size="5%", pad=0.05)
+
     pyplot.colorbar(im2, cax=cax2)
     pyplot.show()
     fig.savefig(directory / "psf.pdf", dpi=300)
@@ -112,15 +115,19 @@ def extra_imgs(names, titles, directory, func=numpy.arcsinh):
 def plot_sersic(X_min, X_max, directory):
     sersic_values = numpy.linspace(0.26, 7, 500)
     X_values = X_sersic(sersic_values)
+
     fig, ax1 = pyplot.subplots(figsize=(8, 5))
+
     ax1.plot(sersic_values, X_values, label=r"$X_{\mathrm{sersic}}$", color="b")
     ax1.axhline(X_min, color="r", linestyle="--", label="Prior lower bound")
     ax1.axhline(X_max, color="g", linestyle="--", label="Prior upper bound")
     ax1.fill_between(sersic_values, X_min, X_max, color="gray", alpha=0.2, label="Allowed range")
+
     ax1.set_xlabel("Sersic Index (n)")
     ax1.set_ylabel(r"$X_{\mathrm{sersic}}$")
     ax1.set_title("Mapping of Sersic Index to X_sersic with Prior for numerical stability?")
     ax1.legend()
+
     ax1.grid(True)
     fig.show()
     fig.savefig(directory / "log_sersic.pdf", dpi=300)
