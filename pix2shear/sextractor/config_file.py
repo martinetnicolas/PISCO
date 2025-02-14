@@ -24,8 +24,7 @@ from sourcextractor.config import (
 ## S++ PROCESSING UNIT
 PSF_DIR = Path(argv[1]) / "airy.psf.fits"
 FILE_NAME = str(argv[2])
-GAIN = 3.1
-measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=PSF_DIR, gain=GAIN)]
+measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=PSF_DIR)]
 measurement_group = MeasurementGroup(ImageGroup(images=measurement_images))
 
 
@@ -34,8 +33,8 @@ x, y = get_pos_parameters()  # center of the galaxy
 rad = FreeParameter(
     lambda o: o.radius, Range(lambda v, o: (0.01, 2 * v), RangeType.EXPONENTIAL)
 )  # effective radius: encloses 50% of the total light
-e1 = FreeParameter(0.0, Range((-0.9999, 0.9999), RangeType.LINEAR))
-e2 = FreeParameter(0.0, Range((-0.9999, 0.9999), RangeType.LINEAR))
+e1 = FreeParameter(0.0, Range((-0.8, 0.8), RangeType.LINEAR))
+e2 = FreeParameter(0.0, Range((-0.8, 0.8), RangeType.LINEAR))
 emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag of ellip vector
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
@@ -56,6 +55,7 @@ add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))
 
 
 ## ADDITIONAL OUTPUTS
+add_output_column("mag_EUCLID_LIKE", mag)
 add_output_column("ratio", ratio)
 add_output_column("angle", angle)
 add_output_column("e1", e1)

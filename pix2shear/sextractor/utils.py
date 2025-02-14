@@ -5,27 +5,35 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from polars import read_csv
 
 
-def compute_ellips_ab_theta(a, b, theta):
+def ellips_ab(a, b, theta):
+    e = 1 - b / a
     rad = numpy.deg2rad(theta)
-    e = (a**2 - b**2) / (a**2 + b**2)
     e1 = e * numpy.cos(2 * rad)
     e2 = e * numpy.sin(2 * rad)
     return e1, e2
 
 
-def compute_ellips_ratio_angle(ratio, angle):
+def ellips_ratio(ratio, angle):
     e = (1 - ratio) / (1 + ratio)
-    return e * numpy.cos(2 * angle), e * numpy.sin(2 * angle)
-
-
-def compute_ellips_quadratic(cxx, cyy, cxy):
-    denominator = cxx + cyy
-    e1 = (cxx - cyy) / denominator
-    e2 = (2 * cxy) / denominator
+    e1 = e * numpy.cos(2 * angle)
+    e2 = e * numpy.sin(2 * angle)
     return e1, e2
 
 
-def load_and_slice_csv(file_path, nb_total):
+def ellips_quad(ellip_cxx, ellip_cyy, ellip_cxy):
+    e1_list, e2_list = [], []
+
+    for c_xx, c_yy, c_xy in zip(ellip_cxx, ellip_cyy, ellip_cxy):
+        covariance_matrix = numpy.array([[c_xx, c_xy], [c_xy, c_yy]])
+        eigenvalues = numpy.linalg.eigvals(covariance_matrix)
+        e1, e2 = numpy.sqrt(eigenvalues)
+        e1_list.append(e1.real)
+        e2_list.append(e2.real)
+
+    return numpy.array(e1_list), numpy.array(e2_list)
+
+
+def slice_csv(file_path, nb_total):
     return numpy.array(read_csv(file_path, separator=",", skip_rows=0)[:nb_total])
 
 
@@ -33,7 +41,7 @@ def X_sersic(n):
     return numpy.log((n - 0.25) / (10 - n))
 
 
-def plot_vignettes(directory, csv_file, vignettes_file):
+def vignettes(directory, csv_file, vignettes_file):
     mins_x = read_csv(csv_file)["pixel_boundaries_min_x"].to_numpy()
     maxs_x = read_csv(csv_file)["pixel_boundaries_max_x"].to_numpy()
     mins_y = read_csv(csv_file)["pixel_boundaries_min_y"].to_numpy()
@@ -79,7 +87,7 @@ def check_psf(file, directory):
     fig.savefig(directory / "psf.pdf", dpi=300)
 
 
-def print_fits(names, titles, directory, func=numpy.arcsinh):
+def extra_imgs(names, titles, directory, func=numpy.arcsinh):
     fig, axes = pyplot.subplots(2, 3, figsize=(15, 8))
 
     for i, ax in enumerate(axes.flat):
@@ -206,7 +214,7 @@ def histos(diff_e1, diff_e2, data_gal, directory, bins):
 
     axes[0].hist(abs(diff_e1), bins=bins, label="Diff e1", color="blue")
     axes[1].hist(abs(diff_e2), bins=bins, label="Diff e2", color="red")
-    axes[2].hist(data_gal, bins=7, edgecolor="black", label="detections")
+    axes[2].hist(data_gal, bins=bins, edgecolor="black", label="detections")
 
     for ax in axes:
         ax.set_yscale("log")
