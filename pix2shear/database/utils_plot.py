@@ -39,7 +39,7 @@ def cdf_inv_cdf(inv_cdf_wrt_mag, cdf_wrt_mag, cases, directory):
     pyplot.savefig(f"{directory}.pdf", dpi=300)
 
 
-def cdf_inv_cdf_case(plot_case, inv_cdf_wrt_mag, cdf_wrt_mag, directory, deg=3):
+def cdf_inv_cdf_case(plot_case, inv_cdf_wrt_mag, cdf_wrt_mag, directory, deg):
     probabilities = numpy.linspace(0, 1, 10000)
     pyplot.figure(figsize=(8, 6))
 
@@ -261,14 +261,14 @@ def plot_example(selected_images, directory):
 
 def plot_histo(selection, bins, data):
     ongoing_values = data[selection]
-    hist = numpy.histogram(ongoing_values, bins=bins)
+    hist = numpy.histogram(ongoing_values.to_numpy(), bins=bins)
     holo_hist = holoviews.Histogram(hist)
     return holo_hist.opts(width=1500, height=400)
 
 
 def interactive_hist(data):
     slider = widgets.IntSlider(name="Bins", start=50, end=300, step=1, value=100)
-    selector = widgets.Select(name="Data", options=list(data.keys()), value=list(data.keys())[0])
+    selector = widgets.Select(name="Data", options=list(data.columns), value=list(data.columns)[0])
     interactive_plot_hist = bind(plot_histo, selection=selector, bins=slider, data=data)
     return Column(selector, slider, interactive_plot_hist)
 

@@ -5,9 +5,9 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy
-import pandas
 from astropy.io import fits
 from joblib import Parallel, delayed, parallel_backend
+from pandas import DataFrame
 from scipy import interpolate, stats
 
 
@@ -73,7 +73,7 @@ def getting_norms(data):
         measures_norms["mean"].append(result[0])
         measures_norms["amax"].append(result[1])
 
-    return pandas.DataFrame(measures_norms)
+    return DataFrame(measures_norms)
 
 
 def draw_lhs(n_dimensions, seed, n_samples):
@@ -147,7 +147,7 @@ def get_inv_cdfs(cdf_mag, cdf_ns, cdf_hlr):
             cdf_values, x_values, bounds_error=False, fill_value="extrapolate"
         )
 
-    return (inv_cdf_mag, inv_cdfs_ns, inv_cdfs_hlr, cases)
+    return inv_cdf_mag, inv_cdfs_ns, inv_cdfs_hlr, cases
 
 
 cdf_mag = numpy.array(

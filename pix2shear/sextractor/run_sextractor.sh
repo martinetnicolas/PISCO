@@ -6,7 +6,7 @@
 #SBATCH --ntasks 1
 #SBATCH --cpus-per-task 1
 #SBATCH --job-name S++_PARALLEL
-#SBATCH --array=0-4999%125  # Run 2000 tasks in parallel, 125 at a time (max cc LAM)
+#SBATCH --array=0-3999%125  # Run 2000 tasks in parallel, 125 at a time (max cc LAM)
 #SBATCH --mail-type=END,FAIL   
 #SBATCH --mail-user=romain.brunet@lam.fr
 #SBATCH --error /net/GECO/pisco/PIX2SHEAR/RESULTS_SEXTRACTOR/logs/EO_%A_%a.log 

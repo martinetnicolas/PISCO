@@ -28,7 +28,7 @@ def create_images(index_args_tuple):
     folder_results = arguments[2]
 
     number += 1
-    seed = (int(time() * 10000000) + random.randint(0, 10_000_000)) % (2**32 - 1)
+    seed = (int(time() * 20000000) + random.randint(0, 10_000_000)) % (2**32 - 1)
 
     pixel_scale = 0.1  # pix size in arcsec (sizes in input catalog in pixels)
     xsize = 64  # gal patch size in pixels (6.4'')
