@@ -33,8 +33,8 @@ x, y = get_pos_parameters()  # center of the galaxy
 rad = FreeParameter(
     lambda o: o.radius, Range(lambda v, o: (0.01, 2 * v), RangeType.EXPONENTIAL)
 )  # effective radius: encloses 50% of the total light
-e1 = FreeParameter(0.0, Range((-0.8, 0.8), RangeType.LINEAR))
-e2 = FreeParameter(0.0, Range((-0.8, 0.8), RangeType.LINEAR))
+e1 = FreeParameter(0.0, Range((-0.9, 0.9), RangeType.LINEAR))
+e2 = FreeParameter(0.0, Range((-0.9, 0.9), RangeType.LINEAR))
 emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag of ellip vector
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis

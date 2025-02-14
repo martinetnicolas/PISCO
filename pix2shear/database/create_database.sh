@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J sbatch_create_database1
+#SBATCH -J create_database_PISCO
 #SBATCH -p batch
 #SBATCH -N 1 
 #SBATCH -c 32
@@ -12,7 +12,10 @@
 
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate PISCO
-DIR_RESULTS="/net/GECO/pisco/PIX2SHEAR/DATASETS"
 
-echo "START COMPUTING DATABASE" >> ${DIR_RESULTS}/outputs_and_errors_create_database1.txt
-python -u create_database.py >> ${DIR_RESULTS}/outputs_and_errors_create_database1.txt
+DIR_RESULTS="/net/GECO/pisco/PIX2SHEAR/DATASETS"
+ERROR_FILE="EO_PISCO_create_database_euclid"
+echo "START COMPUTING DATABASE" >> ${DIR_RESULTS}/${ERROR_FILE}.txt
+
+python -u create_database.py >> ${DIR_RESULTS}/${ERROR_FILE}.txt
+chmod 770 ${DIR_RESULTS}/${ERROR_FILE}.txt

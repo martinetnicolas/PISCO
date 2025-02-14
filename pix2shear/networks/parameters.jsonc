@@ -33,4 +33,7 @@
 // # "1.0.3": "",
 // # hypercube + 40_000 + shear round 2 + 10 gal/patch + shear |0.06|
 
-// # "9.9.9": small test database",
+// # Sextractor test
+// # 1.1.0: "4_000",
+// # 1.1.1: "40_000",
+// # hypercube + shear round 2 + 10 gal/patch + shear |0.06| + ellips gaussian + pixels_out
