@@ -316,11 +316,11 @@ cdf_hlr_wrt_mag = numpy.array(
 )
 
 
-def save_jax_array_to_fits(jax_array, folder, prefix="simu_"):
-    np_array = numpy.array(jax_array.block_until_ready())
+# def save_jax_array_to_fits(jax_array, folder, prefix="simu_"):
+#     np_array = numpy.array(jax_array.block_until_ready())
 
-    for i in range(np_array.shape[0]):
-        if (i + 1) % 1000 == 0:
-            print(i + 1)
-        filename = f"{folder}/{prefix}{i + 1:05d}.fits"
-        fits.writeto(filename, np_array[i], overwrite=True)
+#     for i in range(np_array.shape[0]):
+#         if (i + 1) % 1000 == 0:
+#             print(i + 1)
+#         filename = f"{folder}/{prefix}{i + 1:05d}.fits"
+#         fits.writeto(filename, np_array[i], overwrite=True)

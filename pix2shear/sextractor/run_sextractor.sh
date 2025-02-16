@@ -1,12 +1,12 @@
 #!/bin/bash
-#SBATCH --time 00:05:00
+#SBATCH --time 00:10:00
 #SBATCH --mem 5G
 #SBATCH --ntasks-per-core 1
 #SBATCH --nodes 1
 #SBATCH --ntasks 1
 #SBATCH --cpus-per-task 1
 #SBATCH --job-name S++_PARALLEL
-#SBATCH --array=0-3999%125  # Run 2000 tasks in parallel, 125 at a time (max cc LAM)
+#SBATCH --array=0-39999%125  # Run xx tasks in parallel, 125 at a time (max cc LAM)
 #SBATCH --mail-type=END,FAIL   
 #SBATCH --mail-user=romain.brunet@lam.fr
 #SBATCH --error /net/GECO/pisco/PIX2SHEAR/RESULTS_SEXTRACTOR/logs/EO_%A_%a.log 
@@ -16,7 +16,7 @@
 
 
 ## USER INPUTS
-DATA_PARENT="1.1.0_sextractor" # Directory containing the FITS files
+DATA_PARENT="1.1.1_sextractor" # Directory containing the FITS files
 NB_EXTRA=5 # Number of simulations to save check images
 echo "DATA_PARENT: $DATA_PARENT"
 ALL_DATASETS_DIR="/net/GECO/pisco/PIX2SHEAR/DATASETS/pisco_euclid"

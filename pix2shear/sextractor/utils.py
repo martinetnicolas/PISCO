@@ -174,7 +174,25 @@ def best_results(true_e, shears, directory):
     fig.savefig(directory, dpi=300)
 
 
-def case_results(pred_e, shears, directory):
+def histos(diff_e1, diff_e2, data_gal, directory, bins):
+    fig, axes = pyplot.subplots(1, 3, figsize=(15, 5))
+
+    axes[0].hist(abs(diff_e1), bins=bins, label="Diff e1", color="blue")
+    axes[1].hist(abs(diff_e2), bins=bins, label="Diff e2", color="red")
+    axes[2].hist(data_gal, bins=bins, edgecolor="black", label="detections")
+
+    for ax in axes:
+        ax.set_yscale("log")
+        ax.set_xlabel("Value")
+        ax.set_ylabel("Frequency")
+        ax.legend()
+
+    fig.tight_layout()
+    fig.savefig(directory, dpi=300)
+    fig.show()
+
+
+def case_results(pred_e, shears, directory, symbol="gamma"):
     s = 10
     alpha = 0.2
     c1, c2 = "C0", "C1"
@@ -202,33 +220,15 @@ def case_results(pred_e, shears, directory):
 
     axes[0].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
 
-    axes[0].set_ylabel(r"$\epsilon^{{obs}}$ - $\gamma^{{true}}$", rotation=0, labelpad=20)
-    axes[1].set_ylabel(r"$\epsilon^{{obs}}$", rotation=0, labelpad=20)
+    axes[0].set_ylabel(rf"$\epsilon^{{obs}}$ - $\{symbol}^{{true}}$", rotation=0, labelpad=20)
+    axes[1].set_ylabel(r"$\epsilon^{obs}$", rotation=0, labelpad=20)
 
     for ax in axes:
         ax.set_xlim(-0.055, 0.055)
-        ax.set_xlabel(r"$\gamma^{true}$")
+        ax.set_xlabel(rf"$\{symbol}^{{true}}$")
         ax.legend()
 
     fig.suptitle(f"{directory.name}", fontsize=16)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     fig.tight_layout()
     fig.savefig(directory, dpi=300)
-
-
-def histos(diff_e1, diff_e2, data_gal, directory, bins):
-    fig, axes = pyplot.subplots(1, 3, figsize=(15, 5))
-
-    axes[0].hist(abs(diff_e1), bins=bins, label="Diff e1", color="blue")
-    axes[1].hist(abs(diff_e2), bins=bins, label="Diff e2", color="red")
-    axes[2].hist(data_gal, bins=bins, edgecolor="black", label="detections")
-
-    for ax in axes:
-        ax.set_yscale("log")
-        ax.set_xlabel("Value")
-        ax.set_ylabel("Frequency")
-        ax.legend()
-
-    fig.tight_layout()
-    fig.savefig(directory, dpi=300)
-    fig.show()
