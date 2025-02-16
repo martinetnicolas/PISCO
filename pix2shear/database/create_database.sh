@@ -7,6 +7,8 @@
 #SBATCH --mem 30GB
 #SBATCH -o /dev/null
 #SBATCH -e /dev/null
+#SBATCH --error /net/GECO/pisco/PIX2SHEAR/DATASETS/EO_PISCO_create_database_euclid.log 
+#SBATCH --output /net/GECO/pisco/PIX2SHEAR/DATASETS/EO_PISCO_create_database_euclid.log
 #SBATCH --mail-type=END,FAIL   
 #SBATCH --mail-user=romain.brunet@lam.fr
 
@@ -15,7 +17,7 @@ micromamba activate PISCO
 
 DIR_RESULTS="/net/GECO/pisco/PIX2SHEAR/DATASETS"
 ERROR_FILE="EO_PISCO_create_database_euclid"
-echo "START COMPUTING DATABASE" >> ${DIR_RESULTS}/${ERROR_FILE}.txt
+echo "START COMPUTING DATABASE" >> ${DIR_RESULTS}/${ERROR_FILE}.log
 
-python -u create_database.py >> ${DIR_RESULTS}/${ERROR_FILE}.txt
-chmod 770 ${DIR_RESULTS}/${ERROR_FILE}.txt
+python -u create_database.py >> ${DIR_RESULTS}/${ERROR_FILE}.log
+chmod 770 ${DIR_RESULTS}/${ERROR_FILE}.log

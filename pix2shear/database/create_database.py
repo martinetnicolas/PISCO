@@ -22,12 +22,12 @@ from utils import (
 )
 
 # USER DATA ----------------------------------------------------------------------------------------
-NB_OF_SAMPLES = 40_000
+NB_OF_SAMPLES = 400
 ELLIPS_UNIFORM = False  # gaussian of uniform probability for ellipticities
 PIXELS_OUT = True  # use a 10 pixels band-free around the image
 SEED_G = 22
 SEED_GALAXY = 2222
-VERSION = "1.1.1"  # name of database created
+VERSION = "1.1.9"  # name of database created
 
 MAX_SHEARS = 0.065  # bonds
 DECIMALS = 2  # number of decimals for SHEAR
@@ -130,19 +130,22 @@ print(f"{NB_OF_SAMPLES} simulations run in {round((time() - timei) / 60, 1)} min
 
 # TFDS STYLE ---------------------------------------------------------------------------------------
 DIR_OUT = FOLDER_DATASETS / "pisco_euclid" / VERSION  # name of database
-builder = TransformTfds(
-    dataset_dir=FOLDER_RESULTS, version=VERSION
-)  # transform in tensorflow generator
+# transform in tensorflow generator
+builder = TransformTfds(dataset_dir=FOLDER_RESULTS, version=VERSION)
 builder._data_dir = DIR_OUT
 builder.download_and_prepare()
 print(builder.info)
+# move in sextractor test folder
+for file in FOLDER_RESULTS.iterdir():
+    if not file.name.startswith("simu_"):
+        file.unlink()  # Delete the file
+shutil.move(src=FOLDER_RESULTS, dst=f"{DIR_OUT}_sextractor")
+# permissions only to group pisco
+FOLDER_RESULTS.chmod(0o1770)
+DIR_OUT.chmod(0o1770)
 
 
 # USELESS FOLDERS ----------------------------------------------------------------------------------
 print("deleting original folders...")
-useless_folder = Path("/home/rbrunet/tensorflow_datasets")
-if useless_folder.exists():
-    shutil.rmtree(useless_folder)
-if FOLDER_RESULTS.exists():
-    shutil.rmtree(FOLDER_RESULTS)
+shutil.rmtree(Path("/home/rbrunet/tensorflow_datasets"))
 print("FINITO")
