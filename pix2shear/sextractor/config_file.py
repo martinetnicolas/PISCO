@@ -27,19 +27,17 @@ FILE_NAME = str(argv[2])
 measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=PSF_DIR)]
 measurement_group = MeasurementGroup(ImageGroup(images=measurement_images))
 
-
 ## PARAMETERS
 x, y = get_pos_parameters()  # center of the galaxy
 rad = FreeParameter(
     lambda o: o.radius, Range(lambda v, o: (0.01, 2 * v), RangeType.EXPONENTIAL)
 )  # effective radius: encloses 50% of the total light
-e1 = FreeParameter(0.0, Range((-0.9, 0.9), RangeType.LINEAR))
-e2 = FreeParameter(0.0, Range((-0.9, 0.9), RangeType.LINEAR))
+e1 = FreeParameter(0.0, Range((-0.8, 0.8), RangeType.LINEAR))
+e2 = FreeParameter(0.0, Range((-0.8, 0.8), RangeType.LINEAR))
 emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag of ellip vector
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
 sersic = FreeParameter(2.0, Range((0.1, 7.0), RangeType.LINEAR))  # Sérsic index
-
 
 ## MODEL
 use_iterative_fitting(True)
@@ -52,7 +50,6 @@ flux = get_flux_parameter()  # total flux (brightness) of the galaxy
 mag = {}
 mag = DependentParameter(lambda f, zp=ZP: zp - 2.5 * numpy.log10(f), flux)
 add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))
-
 
 ## ADDITIONAL OUTPUTS
 add_output_column("mag_EUCLID_LIKE", mag)
