@@ -11,7 +11,7 @@ PISCO_DATASETS_DIR="$PIX2SHEAR_DIR/DATASETS/pisco_euclid"
 DATATEST_DIR="$PISCO_DATASETS_DIR/$VERSION"
 PSF_DIR="$PISCO_DATASETS_DIR/PSF"
 RESULTS_DIR="$PIX2SHEAR_DIR/RESULTS_SEXTRACTOR/$VERSION"
-LOGS_DIR="$PIX2SHEAR_DIR/RESULTS_SEXTRACTOR/logs"
+LOGS_DIR="$RESULTS_DIR/logs"
 
 ## CHECKS
 # Sextractor version already done
@@ -36,7 +36,6 @@ if [[ -d "$LOGS_DIR" ]]; then
     echo "Successfully deleted all log files"
 else
     echo "ERROR: Logs directory does not exist: $LOGS_DIR"
-    exit 1
 fi
 
 ## CREATE RESULTS DIRECTORIES
@@ -45,6 +44,7 @@ create_dir() {
 }
 IMAGES_DIR=$(create_dir "$RESULTS_DIR/IMAGES")
 CATALOG_DIR=$(create_dir "$RESULTS_DIR/CATALOG")
+LOGS_DIR=$(create_dir "$RESULTS_DIR/log")
 
 ## RUN IN PARALLEL
 NUM_FILES=$(find "$DATATEST_DIR" -name "*.fits" | wc -l)

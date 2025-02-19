@@ -26,7 +26,6 @@ export OMP_DYNAMIC="FALSE"
 ## ACTIVATE ENV
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate PISCO 
-echo -e "Job running on $HOSTNAME"
 
 ## GET EACH SIMU TO RUN
 index=$SLURM_ARRAY_TASK_ID
@@ -38,9 +37,9 @@ simu_name=$(basename "$fits_file")
 # Main outputs
 command=(
     sourcextractor++
-    --config-file "$(pwd)/my_sepp.config"
+    --config-file "$(pwd)/config.config"
     --detection-image "$fits_file"
-    --python-config-file "$(pwd)/config_file.py" "$PSF_DIR" "$fits_file"
+    --python-config-file "$(pwd)/config.py" "$PSF_DIR" "$fits_file"
     --output-catalog-filename "$CATALOG_DIR/catalog_$simu_name"
 )
 # Images checks for the first NB_CHECK_IMAGES simulations
@@ -54,7 +53,7 @@ if [[ $index -lt $NB_CHECK_IMAGES ]]; then
 fi
 # Run the command
 "${command[@]}"
-echo "Finished processing $simu_name"
+echo -e "Job running on $HOSTNAME => Finished processing $simu_name"
 
 ## SAVE VIGNETTES & GALAXIES PARAMETERS
-python extract_catalog.py $CATALOG_DIR $IMAGES_DIR $simu_name $index $NB_CHECK_IMAGES
+python extract_outputs.py $CATALOG_DIR $IMAGES_DIR $simu_name $index $NB_CHECK_IMAGES
