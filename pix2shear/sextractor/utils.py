@@ -5,14 +5,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from polars import read_csv
 
 
-def ellips_ab(a, b, theta):
-    e = 1 - b / a
-    rad = numpy.deg2rad(theta)
-    e1 = e * numpy.cos(2 * rad)
-    e2 = e * numpy.sin(2 * rad)
-    return e1, e2
-
-
 def ellips_ratio(ratio, angle):
     e = (1 - ratio) / (1 + ratio)
     e1 = e * numpy.cos(2 * angle)
@@ -35,10 +27,6 @@ def ellips_quad(ellip_cxx, ellip_cyy, ellip_cxy):
 
 def slice_csv(file_path, nb_total):
     return numpy.array(read_csv(file_path, separator=",", skip_rows=0)[:nb_total])
-
-
-def X_sersic(n):
-    return numpy.log((n - 0.25) / (10 - n))
 
 
 def vignettes(directory, csv_file, vignettes_file):
@@ -65,6 +53,10 @@ def vignettes(directory, csv_file, vignettes_file):
     for j in range(vignettes.shape[0], 12):
         axes[j].axis("off")
 
+    fig.suptitle(
+        f"nb galaxies {vignettes.shape[0]} =>  {abs(vignettes.shape[0] - 10)} away from 10.",
+        fontsize=16,
+    )
     fig.tight_layout()
     fig.show()
     fig.savefig(directory / "vignettes.pdf", dpi=300)
@@ -112,27 +104,6 @@ def extra_imgs(names, titles, directory, func=numpy.arcsinh):
     fig.savefig(directory / "additional_outputs_sextractor.pdf", dpi=300)
 
 
-def plot_sersic(X_min, X_max, directory):
-    sersic_values = numpy.linspace(0.26, 7, 500)
-    X_values = X_sersic(sersic_values)
-
-    fig, ax1 = pyplot.subplots(figsize=(8, 5))
-
-    ax1.plot(sersic_values, X_values, label=r"$X_{\mathrm{sersic}}$", color="b")
-    ax1.axhline(X_min, color="r", linestyle="--", label="Prior lower bound")
-    ax1.axhline(X_max, color="g", linestyle="--", label="Prior upper bound")
-    ax1.fill_between(sersic_values, X_min, X_max, color="gray", alpha=0.2, label="Allowed range")
-
-    ax1.set_xlabel("Sersic Index (n)")
-    ax1.set_ylabel(r"$X_{\mathrm{sersic}}$")
-    ax1.set_title("Mapping of Sersic Index to X_sersic with Prior for numerical stability?")
-    ax1.legend()
-
-    ax1.grid(True)
-    fig.show()
-    fig.savefig(directory / "log_sersic.pdf", dpi=300)
-
-
 def best_results(true_e, shears, directory):
     s = 10
     alpha = 0.2
@@ -174,21 +145,26 @@ def best_results(true_e, shears, directory):
     fig.savefig(directory, dpi=300)
 
 
-def histos(diff_e1, diff_e2, data_gal, directory, bins):
+def histos(preds_ellps, data_gal, directory, bins):
     fig, axes = pyplot.subplots(1, 3, figsize=(15, 5))
+    alpha = 0.2
 
-    axes[0].hist(abs(diff_e1), bins=bins, label="Diff e1", color="blue")
-    axes[1].hist(abs(diff_e2), bins=bins, label="Diff e2", color="red")
+    axes[0].hist(abs(preds_ellps[:, 0] - preds_ellps[:, 2]), alpha=alpha, bins=bins, label="e1")
+    axes[0].hist(abs(preds_ellps[:, 1] - preds_ellps[:, 3]), alpha=alpha, bins=bins, label="e2")
+
+    axes[1].hist(abs(preds_ellps[:, 0] - preds_ellps[:, 4]), alpha=alpha, bins=bins, label="e1")
+    axes[1].hist(abs(preds_ellps[:, 1] - preds_ellps[:, 5]), alpha=alpha, bins=bins, label="e2")
+
     axes[2].hist(data_gal, bins=bins, edgecolor="black", label="detections")
-
     for ax in axes:
         ax.set_yscale("log")
         ax.set_xlabel("Value")
         ax.set_ylabel("Frequency")
         ax.legend()
 
+    fig.suptitle("Histograms of Predicted differences")
     fig.tight_layout()
-    fig.savefig(directory, dpi=300)
+    fig.savefig(directory / "errors.pdf", dpi=300)
     fig.show()
 
 
@@ -232,3 +208,45 @@ def case_results(pred_e, shears, directory, symbol="gamma"):
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     fig.tight_layout()
     fig.savefig(directory, dpi=300)
+
+
+MIN_SERSIC = 0.3
+MAX_SERSIC = 6.3
+
+
+def X_sersic(n):
+    return numpy.log((n - MIN_SERSIC) / (MAX_SERSIC - n))
+
+
+def orig_sersic(X):
+    return (MAX_SERSIC * numpy.exp(X) + MIN_SERSIC) / (1 + numpy.exp(X))
+
+
+def plot_sersic(X_min, X_max, directory):
+    sersic_values = numpy.linspace(0.3, 6.3, 500)
+    X_values = X_sersic(sersic_values)
+
+    X_inverse_values = numpy.linspace(X_min, X_max, 5000)
+    sersic_inverse_values = orig_sersic(X_inverse_values)
+
+    fig, ax1 = pyplot.subplots(figsize=(8, 5))
+
+    ax1.plot(sersic_values, X_values, label=r"$X_{\mathrm{sersic}}$", color="b")
+    ax1.axhline(X_min, color="r", linestyle="--", label="Prior lower bound")
+    ax1.axhline(X_max, color="g", linestyle="--", label="Prior upper bound")
+    ax1.fill_between(sersic_values, X_min, X_max, color="gray", alpha=0.2, label="Allowed range")
+
+    ax2 = ax1.twinx()
+    ax2.plot(
+        sersic_inverse_values, X_inverse_values, label="Inverse Mapping", color="orange", ls="--"
+    )
+    ax2.legend()
+
+    ax1.set_xlabel("Sersic Index (n)")
+    ax1.set_ylabel(r"$X_{\mathrm{sersic}}$")
+    ax1.set_title("Mapping of Sersic Index to X_sersic with Prior for numerical stability?")
+    ax1.legend()
+
+    ax1.grid(True)
+    fig.show()
+    fig.savefig(directory / "log_sersic.pdf", dpi=300)

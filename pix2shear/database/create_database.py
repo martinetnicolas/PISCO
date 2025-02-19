@@ -22,12 +22,13 @@ from utils import (
 )
 
 # USER DATA ----------------------------------------------------------------------------------------
-NB_OF_SAMPLES = 400
+NB_OF_SAMPLES = 4_000
 ELLIPS_UNIFORM = False  # gaussian of uniform probability for ellipticities
 PIXELS_OUT = True  # use a 10 pixels band-free around the image
+MIN_SERSIC = 0.3  # 0.3 or 0.4
 SEED_G = 22
 SEED_GALAXY = 2222
-VERSION = "1.1.9"  # name of database created
+VERSION = "1.1.2"  # name of database created
 
 MAX_SHEARS = 0.065  # bonds
 DECIMALS = 2  # number of decimals for SHEAR
@@ -85,12 +86,13 @@ else:
         mask = checky(lhs_samples_gal)
         number_of_outsider = numpy.sum(mask)
 
-# offsets : lhs_samples_gal[:, 2:4]
+# offsets
+# lhs_samples_gal[:, 2:4]
 
 # mag
 lhs_samples_gal[:, 4] = inv_cdf_mag(lhs_samples_gal[:, 4])
 closest_half = numpy.around(lhs_samples_gal[:, 4] * 2) / 2  # closest half categories
-closest_half[closest_half == 20] = 20.5
+closest_half[closest_half == 20] = 20.5  # to avoid 20.0
 
 # hlr
 for i, cas in enumerate(closest_half):
@@ -107,7 +109,10 @@ ns_possible_values = numpy.unique(cdf_ns_wrt_mag[:, 1])
 lhs_samples_gal[:, 6] = ns_possible_values[
     numpy.abs(lhs_samples_gal[:, 6][:, None] - ns_possible_values).argmin(axis=1)
 ]
-lhs_samples_gal[:, 6] = numpy.clip(lhs_samples_gal[:, 6], 0.3, 6.2)
+if MIN_SERSIC == 0.3:
+    lhs_samples_gal[:, 6] = numpy.clip(lhs_samples_gal[:, 6], 0.3, 6.2)
+else:
+    lhs_samples_gal[:, 6] = numpy.clip(lhs_samples_gal[:, 6], 0.4, 6.2)
 
 
 # COMPUTING ----------------------------------------------------------------------------------------

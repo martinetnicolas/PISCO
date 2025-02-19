@@ -13,6 +13,7 @@ from sourcextractor.config import (
     SersicModel,
     add_model,
     add_output_column,
+    add_prior,
     get_flux_parameter,
     get_pos_parameters,
     set_deblend_factor,
@@ -32,12 +33,22 @@ x, y = get_pos_parameters()  # center of the galaxy
 rad = FreeParameter(
     lambda o: o.radius, Range(lambda v, o: (0.01, 2 * v), RangeType.EXPONENTIAL)
 )  # effective radius: encloses 50% of the total light
-e1 = FreeParameter(0.0, Range((-0.8, 0.8), RangeType.LINEAR))
-e2 = FreeParameter(0.0, Range((-0.8, 0.8), RangeType.LINEAR))
+e_range = Range((-0.999, 0.999), RangeType.LINEAR)
+e1 = FreeParameter(0.0, e_range)
+e2 = FreeParameter(0.0, e_range)
+add_prior(e1, 0.0, 0.26)
+add_prior(e2, 0.0, 0.26)
 emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag of ellip vector
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
-sersic = FreeParameter(2.0, Range((0.1, 7.0), RangeType.LINEAR))  # Sérsic index
+X_ser = FreeParameter(-2.3, Range((-20, 20), RangeType.LINEAR))
+BOUND_X = 5
+MAX_SERSIC = 6.3
+MIN_SERSIC = 0.3
+add_prior(X_ser, -BOUND_X, BOUND_X)
+sersic = DependentParameter(
+    lambda x: (MAX_SERSIC * numpy.exp(x) + MIN_SERSIC) / (1 + numpy.exp(x)), X_ser
+)
 
 ## MODEL
 use_iterative_fitting(True)
