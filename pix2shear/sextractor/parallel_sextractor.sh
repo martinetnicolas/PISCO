@@ -40,7 +40,7 @@ command=(
     --detection-image $fits_file
     --python-config-file $(pwd)/config.py $PSF_DIR $fits_file
     --output-catalog-filename "$CATALOG_DIR/catalog_$simu_name"
-    --output-properties FlexibleModelFitting,ShapeParameters,Vignet # auto-defined properties / S++ properties / vignettes
+    --output-properties PixelBoundaries,FlexibleModelFitting,ShapeParameters,Vignet
     --background-cell-size 176   # background mesh cell size to determine a value
     --smoothing-box-size 3  # background median filter size
     --detection-threshold 2   # detection threshold above the background

@@ -142,16 +142,13 @@ def best_result(true_e, shears, directory):
 
 
 def histos(preds_ellps, data_gal, directory, bins):
-    fig, axes = pyplot.subplots(1, 3, figsize=(15, 5))
+    fig, axes = pyplot.subplots(1, 2, figsize=(10, 5))
     alpha = 0.2
 
     axes[0].hist(abs(preds_ellps[:, 0] - preds_ellps[:, 2]), alpha=alpha, bins=bins, label="e1")
     axes[0].hist(abs(preds_ellps[:, 1] - preds_ellps[:, 3]), alpha=alpha, bins=bins, label="e2")
 
-    axes[1].hist(abs(preds_ellps[:, 0] - preds_ellps[:, 4]), alpha=alpha, bins=bins, label="e1")
-    axes[1].hist(abs(preds_ellps[:, 1] - preds_ellps[:, 5]), alpha=alpha, bins=bins, label="e2")
-
-    axes[2].hist(data_gal, bins=bins, edgecolor="black", label="detections")
+    axes[1].hist(data_gal, bins=bins, edgecolor="black", label="detections")
     for ax in axes:
         ax.set_yscale("log")
         ax.set_xlabel("Value")
