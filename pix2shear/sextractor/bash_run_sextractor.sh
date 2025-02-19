@@ -1,9 +1,9 @@
 #!/bin/bash
 
 ## USER INPUT
-VERSION="1.1.2_sextractor"
+VERSION="1.1.0_sextractor"
 MAX_PARALLEL_JOBS=125   # max cc LAM : 125
-NB_CHECK_IMAGES=10      # number of images segmentation/residual/fitting/background
+NB_CHECK_IMAGES=5      # number of images segmentation/residual/fitting/background
 
 ## DIRECTORIES
 PIX2SHEAR_DIR="/net/GECO/pisco/PIX2SHEAR"
@@ -17,7 +17,8 @@ LOGS_DIR="$RESULTS_DIR/logs"
 # Sextractor version already done
 if [ -d "$RESULTS_DIR" ]; then
     echo -e "⚠️  \033[1;31m$VERSION\033[0m has been done ⚠️"
-    read -n1 -p "Do you want to remove it? (y/n): " choice
+    read -n1 -p "Do you want to remove it? (y/n) :" choice
+    echo
     if [[ "$choice" =~ ^[Yy]$ ]]; then
         rm -rf $RESULTS_DIR
         mkdir -p $RESULTS_DIR
@@ -35,7 +36,7 @@ if [[ -d "$LOGS_DIR" ]]; then
     rm -f "$LOGS_DIR"/*.log
     echo "Successfully deleted all log files"
 else
-    echo "ERROR: Logs directory does not exist: $LOGS_DIR"
+    echo "ERROR: Logs directory does not exist"
 fi
 
 ## CREATE RESULTS DIRECTORIES
