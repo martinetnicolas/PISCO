@@ -37,9 +37,9 @@ simu_name=$(basename "$fits_file")
 # Main outputs
 command=(
     sourcextractor++
-    --config-file "$(pwd)/config.config"
-    --detection-image "$fits_file"
-    --python-config-file "$(pwd)/config.py" "$PSF_DIR" "$fits_file"
+    --config-file $(pwd)/config.config
+    --detection-image $fits_file
+    --python-config-file $(pwd)/config.py $PSF_DIR $fits_file
     --output-catalog-filename "$CATALOG_DIR/catalog_$simu_name"
 )
 # Images checks for the first NB_CHECK_IMAGES simulations

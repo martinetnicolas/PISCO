@@ -25,7 +25,7 @@ from sourcextractor.config import (
 ## S++ PROCESSING UNIT
 PSF_DIR = Path(argv[1]) / "airy.psf.fits"
 FILE_NAME = str(argv[2])
-measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=PSF_DIR)]
+measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=PSF_DIR, gain=3.1)]
 measurement_group = MeasurementGroup(ImageGroup(images=measurement_images))
 
 ## PARAMETERS

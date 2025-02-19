@@ -5,13 +5,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from polars import read_csv
 
 
-def ellips_ratio(ratio, angle):
-    e = (1 - ratio) / (1 + ratio)
-    e1 = e * numpy.cos(2 * angle)
-    e2 = e * numpy.sin(2 * angle)
-    return e1, e2
-
-
 def ellips_quad(ellip_cxx, ellip_cyy, ellip_cxy):
     e1_list, e2_list = [], []
 
@@ -42,12 +35,15 @@ def vignettes(directory, csv_file, vignettes_file):
     for i, (vignette, min_x, max_x, min_y, max_y) in enumerate(
         zip(vignettes, mins_x, maxs_x, mins_y, maxs_y)
     ):
-        img = axes[i].imshow(vignette, cmap="gray")
-        axes[i].set_title(f"x = {min_x},{max_x} / y = {min_y},{max_y}")
-        divider = make_axes_locatable(axes[i])
-        cax1 = divider.append_axes("right", size="5%", pad=0.05)
-        pyplot.colorbar(img, cax=cax1)
-        axes[i].axis("off")
+        if i >= 12:
+            pass
+        else:
+            img = axes[i].imshow(vignette, cmap="gray")
+            axes[i].set_title(f"x = {min_x},{max_x} / y = {min_y},{max_y}")
+            divider = make_axes_locatable(axes[i])
+            cax1 = divider.append_axes("right", size="5%", pad=0.05)
+            pyplot.colorbar(img, cax=cax1)
+            axes[i].axis("off")
 
     axes[0].axis("on")
     for j in range(vignettes.shape[0], 12):
@@ -104,7 +100,7 @@ def extra_imgs(names, titles, directory, func=numpy.arcsinh):
     fig.savefig(directory / "additional_outputs_sextractor.pdf", dpi=300)
 
 
-def best_results(true_e, shears, directory):
+def best_result(true_e, shears, directory):
     s = 10
     alpha = 0.2
     c1, c2 = "C0", "C1"
@@ -168,7 +164,7 @@ def histos(preds_ellps, data_gal, directory, bins):
     fig.show()
 
 
-def case_results(pred_e, shears, directory, symbol="gamma"):
+def case_result(pred_e, shears, directory, symbol="gamma"):
     s = 10
     alpha = 0.2
     c1, c2 = "C0", "C1"

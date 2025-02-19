@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## USER INPUT
-VERSION="1.1.0_sextractor"
+VERSION="1.1.2_sextractor"
 MAX_PARALLEL_JOBS=125   # max cc LAM : 125
 NB_CHECK_IMAGES=10      # number of images segmentation/residual/fitting/background
 
