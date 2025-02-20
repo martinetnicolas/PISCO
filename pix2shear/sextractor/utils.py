@@ -4,18 +4,32 @@ from matplotlib import pyplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from polars import read_csv
 
+# def ellips_quad(ellip_cxx, ellip_cyy, ellip_cxy):
+#     e1_list, e2_list = [], []
 
-def ellips_quad(ellip_cxx, ellip_cyy, ellip_cxy):
-    e1_list, e2_list = [], []
+#     for c_xx, c_yy, c_xy in zip(ellip_cxx, ellip_cyy, ellip_cxy):
+#         covariance_matrix = numpy.array([[c_xx, c_xy], [c_xy, c_yy]])
+#         eigenvalues = numpy.linalg.eigvals(covariance_matrix)
+#         e1, e2 = numpy.sqrt(eigenvalues)
+#         e1_list.append(e1.real)
+#         e2_list.append(e2.real)
 
-    for c_xx, c_yy, c_xy in zip(ellip_cxx, ellip_cyy, ellip_cxy):
-        covariance_matrix = numpy.array([[c_xx, c_xy], [c_xy, c_yy]])
-        eigenvalues = numpy.linalg.eigvals(covariance_matrix)
-        e1, e2 = numpy.sqrt(eigenvalues)
-        e1_list.append(e1.real)
-        e2_list.append(e2.real)
+#     return numpy.array(e1_list), numpy.array(e2_list)
 
-    return numpy.array(e1_list), numpy.array(e2_list)
+
+# def ellips_ab(a, b, theta):
+#     e = 1 - b / a
+#     rad = numpy.deg2rad(theta)
+#     e1 = e * numpy.cos(2 * rad)
+#     e2 = e * numpy.sin(2 * rad)
+#     return e1, e2
+
+
+# def ellips_ratio(ratio, angle):
+#     e = (1 - ratio) / (1 + ratio)
+#     e1 = e * numpy.cos(2 * angle)
+#     e2 = e * numpy.sin(2 * angle)
+#     return e1, e2
 
 
 def slice_csv(file_path, nb_total):
@@ -100,62 +114,25 @@ def extra_imgs(names, titles, directory, func=numpy.arcsinh):
     fig.savefig(directory / "additional_outputs_sextractor.pdf", dpi=300)
 
 
-def best_result(true_e, shears, directory):
-    s = 10
-    alpha = 0.2
-    c1, c2 = "C0", "C1"
-    t = numpy.linspace(shears.min(), shears.max())
-
-    res_true_g1 = true_e[:, 0] - shears[:, 0]
-    res_true_g2 = true_e[:, 1] - shears[:, 1]
-    poly_g1_true = numpy.polyfit(shears[:, 0], res_true_g1, 1)
-    poly_g2_true = numpy.polyfit(shears[:, 1], res_true_g2, 1)
-
-    fig, axes = pyplot.subplots(1, 2, figsize=(15, 5))
-    axes = axes.flatten()
-
-    lab_1 = f"m= {poly_g1_true[0]:.3f}, c={poly_g1_true[1]:.3f}"
-    axes[0].scatter(shears[:, 0], res_true_g1, alpha=alpha, color=c1, marker="x", s=s, label=lab_1)
-    lab_2 = f"m= {poly_g2_true[0]:.3f}, c={poly_g2_true[1]:.3f}"
-    axes[0].scatter(shears[:, 1], res_true_g2, alpha=alpha, color=c2, marker="o", s=s, label=lab_2)
-    axes[0].plot(t, poly_g1_true[1] + poly_g1_true[0] * t, color=c1)
-    axes[0].plot(t, poly_g2_true[1] + poly_g2_true[0] * t, color=c2)
-
-    axes[1].scatter(shears[:, 0], true_e[:, 0], alpha=alpha, color=c1, marker="x", s=s)
-    axes[1].scatter(shears[:, 1], true_e[:, 1], alpha=alpha, color=c2, marker="o", s=s)
-    lims = axes[1].get_xlim()
-    axes[1].plot(lims, lims, color="black", linestyle="--", linewidth=1, label="y=x")
-
-    axes[0].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
-
-    axes[0].set_ylabel(r"$\epsilon^{{true}}$ - $\gamma^{{true}}$", rotation=0, labelpad=20)
-    axes[1].set_ylabel(r"$\epsilon^{{true}}$", rotation=0, labelpad=20)
-
-    for ax in axes:
-        ax.set_xlim(-0.055, 0.055)
-        ax.set_xlabel(r"$\gamma^{true}$")
-        ax.legend()
-
-    fig.suptitle("Best Results Possible", fontsize=16)
-    fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.savefig(directory, dpi=300)
-
-
-def histos(preds_ellps, data_gal, directory, bins):
-    fig, axes = pyplot.subplots(1, 2, figsize=(10, 5))
+def histos(preds_ellps, true_ellps, data_gal, directory, bins, loggy=False):
+    fig, axes = pyplot.subplots(1, 3, figsize=(15, 5))
     alpha = 0.2
 
-    axes[0].hist(abs(preds_ellps[:, 0] - preds_ellps[:, 2]), alpha=alpha, bins=bins, label="e1")
-    axes[0].hist(abs(preds_ellps[:, 1] - preds_ellps[:, 3]), alpha=alpha, bins=bins, label="e2")
+    axes[0].hist((preds_ellps[:, 0]), alpha=alpha, bins=bins, label="e1")
+    axes[0].hist((preds_ellps[:, 1]), alpha=alpha, bins=bins, label="e2")
 
-    axes[1].hist(data_gal, bins=bins, edgecolor="black", label="detections")
+    axes[1].hist((true_ellps[:, 0]), alpha=alpha, bins=bins, label="e1")
+    axes[1].hist((true_ellps[:, 1]), alpha=alpha, bins=bins, label="e2")
+
+    axes[2].hist(data_gal, bins=bins, edgecolor="black", label="detections")
     for ax in axes:
-        ax.set_yscale("log")
+        if loggy:
+            ax.set_yscale("log")
         ax.set_xlabel("Value")
         ax.set_ylabel("Frequency")
         ax.legend()
 
-    fig.suptitle("Histograms of Predicted differences")
+    # fig.suptitle("Histograms of Predicted differences")
     fig.tight_layout()
     fig.savefig(directory / "errors.pdf", dpi=300)
     fig.show()
@@ -172,7 +149,7 @@ def case_result(pred_e, shears, directory, symbol="gamma"):
     poly_g1 = numpy.polyfit(shears[:, 0], diff_pred_g1, 1)
     poly_g2 = numpy.polyfit(shears[:, 1], diff_pred_g2, 1)
 
-    fig, axes = pyplot.subplots(1, 2, figsize=(15, 5))
+    fig, axes = pyplot.subplots(1, 2, figsize=(12, 5))
     axes = axes.flatten()
 
     lab_1 = f"m= {poly_g1[0]:.3f}, c={poly_g1[1]:.3f}"
@@ -194,6 +171,7 @@ def case_result(pred_e, shears, directory, symbol="gamma"):
 
     for ax in axes:
         ax.set_xlim(-0.055, 0.055)
+        ax.set_ylim(-0.3, 0.3)
         ax.set_xlabel(rf"$\{symbol}^{{true}}$")
         ax.legend()
 

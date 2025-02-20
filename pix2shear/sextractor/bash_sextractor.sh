@@ -31,13 +31,6 @@ if [ ! -d "$DATATEST_DIR" ]; then
     echo "ERROR: '$VERSION' does not exist"
     exit 1
 fi
-# Logs directory exists
-if [[ -d "$LOGS_DIR" ]]; then
-    rm -f "$LOGS_DIR"/*.log
-    echo "Successfully deleted all log files"
-else
-    echo "ERROR: Logs directory does not exist"
-fi
 
 ## CREATE RESULTS DIRECTORIES
 create_dir() {
@@ -54,4 +47,13 @@ echo "Array range: $ARRAY_RANGE and $NUM_FILES files"
 sbatch --array=${ARRAY_RANGE}%${MAX_PARALLEL_JOBS} \
        --error=${LOGS_DIR}/EO_%a.log \
        --output=${LOGS_DIR}/EO_%a.log \
+       --time 00:05:00  \
+       --mem 5G \
+       --ntasks-per-core 1 \
+       --nodes 1 \
+       --ntasks 1 \
+       --cpus-per-task 1 \
+       --job-name S++_PARALLEL \
+       --mail-type=FAIL \
+       --mail-user=romain.brunet@lam.fr \
        parallel_sextractor.sh $DATATEST_DIR $PSF_DIR $RESULTS_DIR $IMAGES_DIR $CATALOG_DIR $NB_CHECK_IMAGES

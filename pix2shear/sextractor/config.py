@@ -41,13 +41,11 @@ add_prior(e2, 0.0, 0.26)
 emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag of ellip vector
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
-X_ser = FreeParameter(-2.3, Range((-20, 20), RangeType.LINEAR))
-BOUND_X = 5
-MAX_SERSIC = 6.3
-MIN_SERSIC = 0.3
-add_prior(X_ser, -BOUND_X, BOUND_X)
+X_ser = FreeParameter(-2.3, Range((-15, 15), RangeType.LINEAR))
+# add_prior(X_ser, -2.3, 1.1)
 sersic = DependentParameter(
-    lambda x: (MAX_SERSIC * numpy.exp(x) + MIN_SERSIC) / (1 + numpy.exp(x)), X_ser
+    lambda x: (10 * numpy.exp(x) + 0.4) / (1 + numpy.exp(x)),
+    X_ser,
 )
 
 ## MODEL
