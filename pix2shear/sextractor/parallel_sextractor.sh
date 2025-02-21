@@ -31,20 +31,20 @@ command=(
     --detection-image $fits_file
     --python-config-file $(pwd)/config.py $PSF_DIR $fits_file
     --output-catalog-filename "$CATALOG_DIR/catalog_$simu_name"
-    --output-properties PixelBoundaries,FlexibleModelFitting,ShapeParameters,Vignet
-    --background-cell-size 176   # background mesh cell size to determine a value
-    --smoothing-box-size 4  # background median filter size
+    --output-properties PixelBoundaries,FlexibleModelFitting,Vignet
+    --background-cell-size 44   # background mesh cell size to determine a value
+    --smoothing-box-size 2  # background median filter size
     --detection-threshold 2   # detection threshold above the background
     --detection-image-saturation 0  # detection image saturation level (0 = no saturation)
     --detection-image-interpolation 0   # interpolate bad pixels in detection image
-    --detection-minimum-area 3   # min. # of pixels above threshold
+    --detection-minimum-area 2   # min. # of pixels above threshold
     --use-attractors-partition 0    # enables the use of attractors for partitioning
     --thread-count 0    # Number of worker threads (-1=automatic, 0=disable all multithreading)
-    --model-fitting-iterations 300  # maximum number of iterations allowed for model fitting
+    --model-fitting-iterations 200  # maximum number of iterations allowed for model fitting
     --output-catalog-format FITS    # the format of the output catalog, one of ASCII or FITS
     --vignet-default-pixval 0   # Default pixel value for the vignet data
     --vignet-size 71,71 # X and Y size of the vignet
-    --sampling-scale-factor 2   # Scaling factor for the rendering of models (e.g. 2 = twice the resolution)
+    --sampling-scale-factor 0.5   # Scaling factor for the rendering of models (e.g. 2 = twice the resolution)
     --psf-pixel-sampling 0.5   # Pixel sampling of the PSF
     --log-level WARN    # FATAL, ERROR, WARN, INFO, DEBUG
 )

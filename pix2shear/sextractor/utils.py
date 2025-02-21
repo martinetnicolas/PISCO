@@ -33,7 +33,7 @@ from polars import read_csv
 
 
 def slice_csv(file_path, nb_total):
-    return numpy.array(read_csv(file_path, separator=",", skip_rows=0)[:nb_total])
+    return read_csv(file_path, separator=",", skip_rows=0)[:nb_total]
 
 
 def vignettes(directory, csv_file, vignettes_file):
@@ -120,9 +120,13 @@ def histos(preds_ellps, true_ellps, data_gal, directory, bins, loggy=False):
 
     axes[0].hist((preds_ellps[:, 0]), alpha=alpha, bins=bins, label="e1")
     axes[0].hist((preds_ellps[:, 1]), alpha=alpha, bins=bins, label="e2")
+    axes[0].set_xlim(-0.3, 0.3)
+    axes[0].set_title("predictions")
 
     axes[1].hist((true_ellps[:, 0]), alpha=alpha, bins=bins, label="e1")
     axes[1].hist((true_ellps[:, 1]), alpha=alpha, bins=bins, label="e2")
+    axes[1].set_xlim(-0.3, 0.3)
+    axes[1].set_title("truth")
 
     axes[2].hist(data_gal, bins=bins, edgecolor="black", label="detections")
     for ax in axes:
@@ -132,7 +136,6 @@ def histos(preds_ellps, true_ellps, data_gal, directory, bins, loggy=False):
         ax.set_ylabel("Frequency")
         ax.legend()
 
-    # fig.suptitle("Histograms of Predicted differences")
     fig.tight_layout()
     fig.savefig(directory / "errors.pdf", dpi=300)
     fig.show()

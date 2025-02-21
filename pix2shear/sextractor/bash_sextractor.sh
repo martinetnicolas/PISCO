@@ -41,7 +41,8 @@ CATALOG_DIR=$(create_dir "$RESULTS_DIR/CATALOG")
 LOGS_DIR=$(create_dir "$RESULTS_DIR/log")
 
 ## RUN IN PARALLEL
-NUM_FILES=$(find "$DATATEST_DIR" -name "*.fits" | wc -l)
+# NUM_FILES=$(find "$DATATEST_DIR" -name "*.fits" | wc -l)
+NUM_FILES=2000
 ARRAY_RANGE="0-$((NUM_FILES - 1))" # slurm arrays are zero-indexed
 echo "Array range: $ARRAY_RANGE and $NUM_FILES files"
 sbatch --array=${ARRAY_RANGE}%${MAX_PARALLEL_JOBS} \
