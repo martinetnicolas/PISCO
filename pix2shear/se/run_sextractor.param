@@ -1,0 +1,22 @@
+ELLIP1MODEL_IMAGE        #Ellipticity component from model-fitting
+ELLIP2MODEL_IMAGE        #Ellipticity component from model-fitting
+ELLIP1ERRMODEL_IMAGE     #Ellipticity component std.error from model-fitting
+ELLIP2ERRMODEL_IMAGE     #Ellipticity component std.error from model-fitting
+
+ELLIPTICITY              #1 - B_IMAGE/A_IMAGE
+THETA_IMAGE              #Position angle (CCW/x)                                    [deg]
+ERRTHETA_IMAGE           #Error ellipse position angle (CCW/x)                      [deg]
+#THETAMODEL_IMAGE	     #Model position angle (CCW/x)                              [deg]
+#ERRTHETAMODEL_IMAGE      #Error ellipse pos.angle of fitted position (CCW/x)        [deg]
+
+SPHEROID_SERSICN         #Spheroid Sersic index from fitting                       
+SPHEROID_SERSICNERR      #RMS error on fitted spheroid Sersic index
+MAG_AUTO                 #Kron-like elliptical aperture magnitude                   [mag]
+MAGERR_AUTO              #RMS error for AUTO magnitude   
+FLUX_RADIUS		         #Fraction-of-light radii                                   [pixel]
+
+X_IMAGE
+Y_IMAGE
+
+NUMBER_ASSOC
+VECTOR_ASSOC             2

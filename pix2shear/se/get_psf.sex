@@ -1,0 +1,73 @@
+#-------------------------------- Catalog ------------------------------------
+ 
+PARAMETERS_NAME  get_psf.param      # name of the file containing catalog contents
+
+#------------------------------- Extraction ----------------------------------
+ 
+DETECT_TYPE      CCD                # CCD (linear) or PHOTO (with gamma correction)
+DETECT_MINAREA   3                  # min. # of pixels above threshold
+DETECT_MAXAREA   0                  # max. # of pixels above threshold (0=unlimited)
+THRESH_TYPE      RELATIVE           # ABSOLUTE       # threshold type: RELATIVE (in sigmas)
+                                    # or ABSOLUTE (in ADUs)
+DETECT_THRESH    2                  # 3.e-6   # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
+ANALYSIS_THRESH  2                  # 3.e-6   # <sigmas> or <threshold>,<ZP> in mag.arcsec-2
+ 
+DEBLEND_NTHRESH  16                 # Number of deblending sub-thresholds
+DEBLEND_MINCONT  0.01               # Minimum contrast parameter for deblending
+ 
+MASK_TYPE        CORRECT            # type of detection MASKing: can be one of NONE, BLANK or CORRECT
+
+#-------------------------------- Photometry -----------------------------------
+
+PHOT_APERTURES   10                 # MAG_APER aperture diameter(s) in pixels
+PHOT_AUTOPARAMS  2.5, 3.5           # MAG_AUTO parameters: <Kron_fact>,<min_radius>
+PHOT_PETROPARAMS 2.0, 3.5           # MAG_PETRO parameters: <Petrosian_fact>, <min_radius>
+PHOT_AUTOAPERS   0.0,0.0            # <estimation>,<measurement> minimum apertures for MAG_AUTO and MAG_PETRO
+PHOT_FLUXFRAC    0.5                # flux fraction[s] used for FLUX_RADIUS
+ 
+SATUR_LEVEL      50.0               # level (in ADUs) at which arises saturation
+SATUR_KEY        BLA                # keyword for saturation level (in ADUs)
+
+MAG_ZEROPOINT    30.84              # magnitude zero-point 
+MAG_GAMMA        4.0                # gamma of emulsion (for photographic scans)
+GAIN             3.1                # detector gain in e-/ADU
+GAIN_KEY         GAIN               # keyword for detector gain in e-/ADU ?or TOT?
+PIXEL_SCALE      0.1                # size of pixel in arcsec (0=use FITS WCS info)
+ 
+#------------------------- Star/Galaxy Separation ----------------------------
+ 
+SEEING_FWHM      0.1                # stellar FWHM in arcsec
+STARNNW_NAME     default.nnw        # Neural-Network_Weight table filename
+ 
+#------------------------------ Background -----------------------------------
+ 
+BACK_TYPE        MANUAL             # AUTO or MANUAL
+BACK_VALUE       0.0                # Default background value in MANUAL mode
+BACK_SIZE        480                # Background mesh: <size> or <width>,<height>
+BACK_FILTERSIZE  1                  # Background filter: <size> or <width>,<height>
+ 
+BACKPHOTO_TYPE   GLOBAL             # can be GLOBAL or LOCAL
+BACKPHOTO_THICK  48                 # thickness of the background LOCAL annulus
+BACK_FILTTHRESH  1.e-2              # Threshold above which the background map filter operates
+ 
+#--------------------- Memory (change with caution!) -------------------------
+ 
+MEMORY_OBJSTACK  3000               # number of objects in stack
+MEMORY_PIXSTACK  300000             # number of pixels in stack
+MEMORY_BUFSIZE   1024               # number of lines in buffer
+
+#----------------------------- Miscellaneous ---------------------------------
+ 
+VERBOSE_TYPE     NORMAL             # can be QUIET, NORMAL or FULL
+HEADER_SUFFIX    .head              # Filename extension for additional headers
+WRITE_XML        N                  # Write XML file (Y/N)?
+XML_NAME         sex.xml            # Filename for XML output
+XSL_URL          file:///usr/share/sextractor/sextractor.xsl
+                                    # Filename for XSL style-sheet
+NTHREADS         1                  # 1 single thread
+
+FITS_UNSIGNED    N                  # Treat FITS integer values as unsigned (Y/N)?
+INTERP_MAXXLAG   16                 # Max. lag along X for 0-weight interpolation
+INTERP_MAXYLAG   16                 # Max. lag along Y for 0-weight interpolation
+INTERP_TYPE      NONE               # Interpolation type: NONE, VAR_ONLY or ALL
+

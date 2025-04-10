@@ -23,15 +23,16 @@ from sourcextractor.config import (
 )
 
 ## S++ PROCESSING UNIT
-PSF_DIR = Path(argv[1]) / "airy.psf.fits"
-FILE_NAME = str(argv[2])
-measurement_images = [MeasurementImage(fits_file=FILE_NAME, psf_file=PSF_DIR, gain=3.1)]
+FILE_NAME = Path(argv[1])
+PSF_DIR = Path("/net/GECO/pisco/PIX2SHEAR/DATASETS/psf")
+PSF = PSF_DIR / "psf_style-airy_size-81_pixelscale-0.06.fits"
+measurement_images = [MeasurementImage(fits_file=str(FILE_NAME), psf_file=str(PSF), gain=3.1)]
 measurement_group = MeasurementGroup(ImageGroup(images=measurement_images))
 
 ## PARAMETERS
 x, y = get_pos_parameters()  # center of the galaxy
 rad = FreeParameter(
-    lambda o: o.radius, Range(lambda v, o: (0.01, 2 * v), RangeType.EXPONENTIAL)
+    lambda o: o.radius, Range(lambda v, o: (0.01, 10 * v), RangeType.EXPONENTIAL)
 )  # effective radius: encloses 50% of the total light
 e_range = Range((-0.999, 0.999), RangeType.LINEAR)
 e1 = FreeParameter(0.0, e_range)
@@ -41,11 +42,12 @@ add_prior(e2, 0.0, 0.26)
 emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag of ellip vector
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
-X_ser = FreeParameter(-2.3, Range((-15, 15), RangeType.LINEAR))
-# add_prior(X_ser, -2.3, 1.1)
+X_ser = FreeParameter(-2.3, Range((-10, 10), RangeType.LINEAR))
+add_prior(X_ser, -2.8, 1.1)
+MIN_SERSIC = 0.3
+MAX_SERSIC = 10
 sersic = DependentParameter(
-    lambda x: (10 * numpy.exp(x) + 0.4) / (1 + numpy.exp(x)),
-    X_ser,
+    lambda x: (MAX_SERSIC * numpy.exp(x) + MIN_SERSIC) / (1 + numpy.exp(x)), X_ser
 )
 
 ## MODEL
@@ -53,17 +55,18 @@ use_iterative_fitting(True)
 set_meta_iterations(3)
 set_deblend_factor(0.9)  # Usually should be close to 1, but not exactly
 set_meta_iteration_stop(0.0001)  # increase -> faster!
-ZP = 24
+ZP = 30.84
 flux = {}
 flux = get_flux_parameter()  # total flux (brightness) of the galaxy
 mag = {}
 mag = DependentParameter(lambda f, zp=ZP: zp - 2.5 * numpy.log10(f), flux)
 add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))
 
-## ADDITIONAL OUTPUTS
-add_output_column("mag_EUCLID_LIKE", mag)
-add_output_column("ratio", ratio)
-add_output_column("angle", angle)
-add_output_column("e1", e1)
-add_output_column("e2", e2)
-add_output_column("sersic", sersic)
+## USER OUTPUTS
+add_output_column("x", x)
+add_output_column("y", y)
+add_output_column("sersic_model", sersic)
+add_output_column("mag_model", mag)
+add_output_column("flux_model", flux)
+add_output_column("e1_model", e1)
+add_output_column("e2_model", e2)
