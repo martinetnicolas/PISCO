@@ -160,7 +160,12 @@ def print_flux_binned_redshift(full_image_z_flux, label_stamp, bounds_pixel):
 
 
 def create_images(
-    index_args_tuple, shape_noise_cancel_add_noise, shape_noise_cancel_sub_noise, style_psf, k
+    index_args_tuple,
+    shape_noise_add,
+    shape_noise_sub,
+    style_psf,
+    total_nb_of_samples,
+    k
 ):
     # get seed for noise and args for galsim
     seed, arguments = index_args_tuple
@@ -168,8 +173,8 @@ def create_images(
 
     # key for tfds
     hashed_key = seed + 1
-    hashed_key *= 2 if shape_noise_cancel_add_noise else 1
-    hashed_key *= 2 if shape_noise_cancel_sub_noise else 1
+    hashed_key *= 2 if shape_noise_add else 1
+    hashed_key *= 2 if shape_noise_sub else 1
     hashed_key -= k
 
     # params simu
@@ -273,25 +278,24 @@ def create_images(
     noise_image.addNoise(noise)
 
     # add noise
-    if shape_noise_cancel_add_noise and shape_noise_cancel_sub_noise:
+    if shape_noise_add and shape_noise_sub:
         full_image += noise_image if k < 2 else -noise_image
-    elif shape_noise_cancel_add_noise:
+    elif shape_noise_add:
         full_image += noise_image
-    elif shape_noise_cancel_sub_noise:
+    elif shape_noise_sub:
         full_image -= noise_image
     else:
         full_image += noise_image
 
-    # # psf image
-    # full_image_psf = galsim.ImageF(image_size, image_size)
-    # full_image_psf.setOrigin(1, 1)
-    # full_image_psf = psf.drawImage(image=full_image_psf, scale=pixel_scale)
-    # # full_image_psf.addNoise(noise)
+    # psf image
+    full_image_psf = galsim.ImageF(image_size, image_size)
+    full_image_psf.setOrigin(1, 1)
+    full_image_psf = psf.drawImage(image=full_image_psf, scale=pixel_scale)
+    # full_image_psf.addNoise(noise)
 
-    # image arguments
-    return hashed_key, {
+    # return args
+    dict = {
         "image": full_image.array,
-        # "image_psf": full_image_psf.array, # needs to be taken out for dbb > 100k
         "avg_g": numpy.array([avg_g1, avg_g2]).astype(numpy.float32),
         "avg_obs_e": numpy.array([avg_obs_e1, avg_obs_e2]).astype(numpy.float32),
         "avg_int_e": numpy.array([avg_int_e1, avg_int_e2]).astype(numpy.float32),
@@ -310,3 +314,30 @@ def create_images(
             ],
         ).astype(numpy.float32),
     }
+
+    if total_nb_of_samples <= 50_000:
+        dict["image_psf"] = full_image_psf.array
+
+    return hashed_key, dict
+    # # image arguments
+    # return hashed_key, {
+    #     "image": full_image.array,
+    #     "image_psf": full_image_psf.array,  # needs to be taken out for dbb > 100k
+    #     "avg_g": numpy.array([avg_g1, avg_g2]).astype(numpy.float32),
+    #     "avg_obs_e": numpy.array([avg_obs_e1, avg_obs_e2]).astype(numpy.float32),
+    #     "avg_int_e": numpy.array([avg_int_e1, avg_int_e2]).astype(numpy.float32),
+    #     "keys": numpy.array([seed, hashed_key, k]).astype(numpy.float32),
+    #     "gal_params": numpy.stack(
+    #         [
+    #             int_e1,
+    #             int_e2,
+    #             obs_e1,
+    #             obs_e2,
+    #             params["x"],
+    #             params["y"],
+    #             params["mag"],
+    #             params["hlr"],
+    #             params["sersic"],
+    #         ],
+    #     ).astype(numpy.float32),
+    # }

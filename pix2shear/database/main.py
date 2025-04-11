@@ -8,6 +8,8 @@ from functions_lhs import draw_lhs_gal, draw_lhs_img
 from functions_projections import project_lhs
 from tqdm import tqdm
 
+DTYPE = numpy.float32
+
 
 class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
     def __init__(
@@ -16,16 +18,16 @@ class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
         ellips_style,
         pixel_out,
         seed_database,
-        shape_noise_cancel_add_noise,
-        shape_noise_cancel_sub_noise,
+        shape_noise_add,
+        shape_noise_sub,
         style_psf,
         lhs_pos,
     ):
         self.nb_of_samples = nb_of_samples
         self.seed_database = seed_database
 
-        self.shape_noise_cancel_add_noise = shape_noise_cancel_add_noise
-        self.shape_noise_cancel_sub_noise = shape_noise_cancel_sub_noise
+        self.shape_noise_add = shape_noise_add
+        self.shape_noise_sub = shape_noise_sub
         self.style_psf = style_psf
         self.ellips_style = ellips_style
         self.pixel_out = pixel_out
@@ -34,26 +36,46 @@ class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
         self.images_size = (352, 352)
         self.nb_galaxies = 10
         self.nb_galaxies_parameters = 9
+
+        self.slice_shape_noise = (self.shape_noise_add + 1) * (self.shape_noise_sub + 1)
+        self.total_nb_of_samples = self.slice_shape_noise * self.nb_of_samples
         self.nb_total_galaxies = self.nb_of_samples * self.nb_galaxies
 
         super().__init__()
 
     def _info(self) -> tfds.core.DatasetInfo:
-        dtype = numpy.float32
+        features = {
+            "image": tfds.features.Tensor(shape=self.images_size, dtype=DTYPE),
+            "avg_g": tfds.features.Tensor(shape=(2,), dtype=DTYPE),
+            "avg_obs_e": tfds.features.Tensor(shape=(2,), dtype=DTYPE),
+            "avg_int_e": tfds.features.Tensor(shape=(2,), dtype=DTYPE),
+            "keys": tfds.features.Tensor(shape=(3,), dtype=DTYPE),
+            "gal_params": tfds.features.Tensor(
+                shape=(self.nb_galaxies_parameters, self.nb_galaxies), dtype=DTYPE
+            ),
+        }
+        if self.total_nb_of_samples <= 50_000:
+            features["image_psf"] = tfds.features.Tensor(shape=self.images_size, dtype=DTYPE)
+
+        metadata = {
+            "nb_of_samples": self.nb_of_samples,
+            "seed_database": self.seed_database,
+            "shape_noise_add": self.shape_noise_add,
+            "shape_noise_sub": self.shape_noise_sub,
+            "style_psf": self.style_psf,
+            "ellips_style": self.ellips_style,
+            "pixel_out": self.pixel_out,
+            "lhs_pos": self.lhs_pos,
+            "images_size": self.images_size,
+            "nb_galaxies": self.nb_galaxies,
+            "nb_galaxies_parameters": self.nb_galaxies_parameters,
+            "nb_total_galaxies": self.nb_total_galaxies,
+            "total_nb_of_samples": self.total_nb_of_samples,
+            "slice_shape_noise": self.slice_shape_noise,
+        }
+
         return self.dataset_info_from_configs(
-            features=tfds.features.FeaturesDict(
-                {
-                    "image": tfds.features.Tensor(shape=self.images_size, dtype=dtype),
-                    # "image_psf": tfds.features.Tensor(shape=self.images_size, dtype=numpy.float32),  # needs to be taken out for dbb > 100k #noqa
-                    "avg_g": tfds.features.Tensor(shape=(2,), dtype=dtype),
-                    "avg_obs_e": tfds.features.Tensor(shape=(2,), dtype=dtype),
-                    "avg_int_e": tfds.features.Tensor(shape=(2,), dtype=dtype),
-                    "keys": tfds.features.Tensor(shape=(3,), dtype=dtype),
-                    "gal_params": tfds.features.Tensor(
-                        shape=(self.nb_galaxies_parameters, self.nb_galaxies), dtype=dtype
-                    ),
-                }
-            )
+            features=tfds.features.FeaturesDict(features), metadata=tfds.core.MetadataDict(metadata)
         )
 
     def _split_generators(self, dl_manager: tfds.download.DownloadManager):
@@ -92,18 +114,15 @@ class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
         # combined for multiprocess
         combined_lhs = list(zip(lhs_img, lhs_gal))
 
-        # shape noise cancellation
-        TOTAL = 2 if self.shape_noise_cancel_add_noise else 1
-        TOTAL *= 2 if self.shape_noise_cancel_sub_noise else 1
-
         # compute image
-        for k in range(TOTAL):
+        for k in range(self.slice_shape_noise):
             # fix function parameters
             create_images_partial = partial(
                 create_images,
-                shape_noise_cancel_add_noise=self.shape_noise_cancel_add_noise,
-                shape_noise_cancel_sub_noise=self.shape_noise_cancel_sub_noise,
+                shape_noise_add=self.shape_noise_add,
+                shape_noise_sub=self.shape_noise_sub,
                 style_psf=self.style_psf,
+                total_nb_of_samples=self.total_nb_of_samples,
                 k=k,
             )
 

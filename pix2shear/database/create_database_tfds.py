@@ -6,13 +6,13 @@ from main import PiscoEuclid
 from utils import print_csv_images_galaxies, search_folder
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "1.1.1"
-NB_OF_SAMPLES = 1000
+VERSION = "1.1.3"
+NB_OF_SAMPLES = 100
 ELLIPS_STYLE = "gaussian"  # gaussian / uniform probability for ellipticities
-PIXELS_OUT = False  # use a 10 pixels band-free around the image
-SHAPE_NOISE_CANCEL_ADD_NOISE = False
-SHAPE_NOISE_CANCEL_SUB_NOISE = False
-LHS_POS = False  # x,y included in LHS
+PIXELS_OUT = True  # use a 10 pixels band-free around the image
+SHAPE_NOISE_ADD = True
+SHAPE_NOISE_SUB = True
+LHS_POS = True  # x,y included in LHS
 SEED_DATABASE = 22
 PSF = "airy"  # airy / euclid
 STYLE = "pisco_euclid"
@@ -45,8 +45,8 @@ PiscoEuclid(
     ellips_style=ELLIPS_STYLE,
     pixel_out=PIXELS_OUT,
     seed_database=SEED_DATABASE,
-    shape_noise_cancel_add_noise=SHAPE_NOISE_CANCEL_ADD_NOISE,
-    shape_noise_cancel_sub_noise=SHAPE_NOISE_CANCEL_SUB_NOISE,
+    shape_noise_add=SHAPE_NOISE_ADD,
+    shape_noise_sub=SHAPE_NOISE_SUB,
     style_psf=PSF,
     lhs_pos=LHS_POS,
 ).download_and_prepare()
@@ -72,5 +72,6 @@ columns_img = ["avg_g1", "avg_g2", "avg_int_e1", "avg_int_e2", "avg_obs_e1", "av
 columns_gal=["int_e1", "int_e2", "obs_e1", "obs_e2", "x", "y", "mag", "hlr", "sersic"]
 all_params_dataset = dataset.map(lambda x: {key: x[key] for key in keys_dataset})
 
+print("csv creation")
 all_params = list(all_params_dataset.as_numpy_iterator())
 print_csv_images_galaxies(keys_dataset, all_params,DIR_VERSION,columns_img,columns_gal)
