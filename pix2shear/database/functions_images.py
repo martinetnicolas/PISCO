@@ -2,6 +2,7 @@ import math
 
 import galsim
 import numpy
+from utils import DIRS
 
 
 def unpack_lhs(arguments):
@@ -21,6 +22,8 @@ def unpack_lhs(arguments):
         "sersic": lhs[:, 6],
         "x": lhs[:, 7],
         "y": lhs[:, 8],
+        "index_cosmos": lhs[:, 9],
+        "sample_cosmos": lhs[:, 10],
     }
 
 
@@ -33,9 +36,9 @@ def get_constants():
     gain = 3.1  # e-/ADU
     readoutnoise = 4.2  # e-
     sky_bkg = 22.35  # mag/arcsec2
-    ZP = 24.0  # mag
+    zp = 24.0  # mag
 
-    return pixel_scale, xsize, ysize, image_size, t_exp, gain, readoutnoise, sky_bkg, ZP
+    return pixel_scale, xsize, ysize, image_size, t_exp, gain, readoutnoise, sky_bkg, zp
 
 
 def build_psf(style):
@@ -120,26 +123,6 @@ def get_offset(off_x, off_y, x, y):
     return image_pos, ix_nominal, iy_nominal, offset
 
 
-def bin_edgeds_bounds(max_shears=0.065, deg_poly_fit_g_vs_z=1):
-    if max_shears == 0.055:
-        max_bin_edges = 2.6
-    elif max_shears == 0.065:
-        max_bin_edges = 3.2
-    if deg_poly_fit_g_vs_z == 1:
-        min_bin_edges = 0.019
-    elif deg_poly_fit_g_vs_z == 2:
-        min_bin_edges = 0.07
-
-    return min_bin_edges, max_bin_edges
-
-
-def binned_shear_and_redshift(redshift, nb_z_bins):
-    min_bin_edges, max_bin_edges = bin_edgeds_bounds()
-    bin_edges = numpy.linspace(min_bin_edges, max_bin_edges, nb_z_bins + 1)
-    bin_indices = numpy.digitize(redshift, bins=bin_edges, right=False)
-    return bin_indices
-
-
 def create_mask_over_flux(pixel_scale, hlr, ny, nx):
     y, x = numpy.mgrid[0:ny, 0:nx]
     x_center = (nx - 1) / 2
@@ -165,7 +148,8 @@ def create_images(
     shape_noise_sub,
     style_psf,
     total_nb_of_samples,
-    k
+    type_cosmos,
+    k,
 ):
     # get seed for noise and args for galsim
     seed, arguments = index_args_tuple
@@ -181,17 +165,13 @@ def create_images(
     params = unpack_lhs(arguments)
 
     # constant arguments
-    pixel_scale, xsize, ysize, image_size, t_exp, gain, readoutnoise, sky_bkg, ZP = get_constants()
-    F_sky = pixel_scale ** (2) * t_exp * 10 ** (-(sky_bkg - ZP) / 2.5)  # e-/pixel
+    PIXEL_SCALE, XSIZE, YSIZE, IMG_SIZE, EXPTIME, GAIN, readoutnoise, SKY_BKG, ZP = get_constants()
 
     # psf
     psf = build_psf(style_psf)
 
     # rotation
     cos2t, sin2t, theta_rot = rotation(k)
-
-    # picked z & g w.r.t. bin
-    # bin_indices = binned_shear_and_redshift(params["z"], nb_z_bins)
 
     # intrinsic ellipticities
     int_e1 = params["int_e1"] * cos2t + params["int_e2"] * sin2t
@@ -212,24 +192,46 @@ def create_images(
     avg_g2 = params["g2"]
 
     # calculate gal flux
-    flux = t_exp / gain * 10 ** (-(params["mag"] - ZP) / 2.5)
+    flux = EXPTIME / GAIN * 10 ** (-(params["mag"] - ZP) / 2.5)
 
     # galsim images
-    full_image = build_full_image(image_size, pixel_scale)
-    noise_image = build_full_image(image_size, pixel_scale)
-    # full_image_z = build_full_image(image_size, pixel_scale)
+    full_image = build_full_image(IMG_SIZE, PIXEL_SCALE)
+    noise_image = build_full_image(IMG_SIZE, PIXEL_SCALE)
+    # full_image_z = build_full_image(IMG_SIZE, PIXEL_SCALE)
 
     # print each object
     NB_OBJET = len(params["x"])
     for i in range(NB_OBJET):
-        # compute Sersic profile
-        gal = galsim.Sersic(
-            n=params["sersic"][i],
-            half_light_radius=params["hlr"][i],
-            flux=flux[i],
-            gsparams=GSPARAMS,
-            trunc=params["hlr"][i] * 4.5,
-        )
+        # compute Sersic profile with cosmos
+        if params["index_cosmos"][i] > 0:
+            CHOICE = int(params["index_cosmos"][i])
+            SAMPLE = str(params["sample_cosmos"][i])
+
+            common_kwargs = dict(
+                index=CHOICE,
+                noise_pad_size=0,
+                deep=False,
+                sersic_prec=0.0,
+                gsparams=GSPARAMS,
+            )
+            cosmos_cat = galsim.COSMOSCatalog(
+                sample=SAMPLE,
+                dir=DIRS["cosmos"],
+                use_real=True,
+                exclusion_level="none",
+                exptime=EXPTIME,
+            )
+            gal = cosmos_cat.makeGalaxy(gal_type=type_cosmos, **common_kwargs)
+
+        else:
+            # compute Sersic profile with galsim
+            gal = galsim.Sersic(
+                n=params["sersic"][i],
+                half_light_radius=params["hlr"][i],
+                flux=flux[i],
+                gsparams=GSPARAMS,
+                trunc=params["hlr"][i] * 4.5,
+            )
 
         # apply ellips
         gal = gal.shear(e1=int_e1[i], e2=int_e2[i])
@@ -250,7 +252,7 @@ def create_images(
         )
 
         # draw galaxy
-        stamp = galsim.ImageF(xsize, ysize, scale=pixel_scale)
+        stamp = galsim.ImageF(XSIZE, YSIZE, scale=PIXEL_SCALE)
         final.drawImage(image=stamp, wcs=full_image.wcs.local(image_pos), offset=offset)
         stamp.setCenter(ix_nominal, iy_nominal)
 
@@ -258,22 +260,23 @@ def create_images(
         bounds = stamp.bounds & full_image.bounds
         full_image[bounds] += stamp[bounds]
 
-        # # flux-binned redshift
-        # label_stamp = galsim.ImageI(xsize, ysize, scale=pixel_scale)
-        # label_stamp.setCenter(ix_nominal, iy_nominal)
-        # mask = create_mask_over_flux(pixel_scale, params["hlr"][i], xsize, ysize)
-        # label_stamp.array[mask] = bin_indices
-
         # # pixeled-binned redshift image
+        # full_image_z = galsim.ImageF(XSIZE, YSIZE)
+        # full_image_z.setOrigin(1, 1)
         # pos_gal = galsim.PositionI(int(round(ix_nominal)), int(round(iy_nominal)))
         # full_image_z[pos_gal.x, pos_gal.y] = bin_indices
 
         # # flux-binned redshift image
+        # label_stamp = galsim.ImageI(XSIZE, YSIZE, scale=PIXEL_SCALE)
+        # label_stamp.setCenter(ix_nominal, iy_nominal)
+        # mask = create_mask_over_flux(PIXEL_SCALE, params["hlr"][i], XSIZE, YSIZE)
+        # label_stamp.array[mask] = bin_indices
         # bounds_pixel = label_stamp.bounds & full_image_z.bounds
         # full_image_z = print_flux_binned_redshift(full_image_z, label_stamp, bounds_pixel)
 
     # gaussian noise image
-    variance = (numpy.sqrt(readoutnoise**2 + F_sky) / gain) ** 2  # e- -> ADU
+    F_SKY = PIXEL_SCALE ** (2) * EXPTIME * 10 ** (-(SKY_BKG - ZP) / 2.5)  # e-/pixel
+    variance = (numpy.sqrt(readoutnoise**2 + F_SKY) / GAIN) ** 2  # e- -> ADU
     noise = galsim.GaussianNoise(rng=galsim.BaseDeviate(seed), sigma=math.sqrt(variance))
     noise_image.addNoise(noise)
 
@@ -288,13 +291,13 @@ def create_images(
         full_image += noise_image
 
     # psf image
-    full_image_psf = galsim.ImageF(image_size, image_size)
+    full_image_psf = galsim.ImageF(IMG_SIZE, IMG_SIZE)
     full_image_psf.setOrigin(1, 1)
-    full_image_psf = psf.drawImage(image=full_image_psf, scale=pixel_scale)
+    full_image_psf = psf.drawImage(image=full_image_psf, scale=PIXEL_SCALE)
     # full_image_psf.addNoise(noise)
 
     # return args
-    dict = {
+    dict_results = {
         "image": full_image.array,
         "avg_g": numpy.array([avg_g1, avg_g2]).astype(numpy.float32),
         "avg_obs_e": numpy.array([avg_obs_e1, avg_obs_e2]).astype(numpy.float32),
@@ -316,28 +319,6 @@ def create_images(
     }
 
     if total_nb_of_samples <= 50_000:
-        dict["image_psf"] = full_image_psf.array
+        dict_results["image_psf"] = full_image_psf.array
 
-    return hashed_key, dict
-    # # image arguments
-    # return hashed_key, {
-    #     "image": full_image.array,
-    #     "image_psf": full_image_psf.array,  # needs to be taken out for dbb > 100k
-    #     "avg_g": numpy.array([avg_g1, avg_g2]).astype(numpy.float32),
-    #     "avg_obs_e": numpy.array([avg_obs_e1, avg_obs_e2]).astype(numpy.float32),
-    #     "avg_int_e": numpy.array([avg_int_e1, avg_int_e2]).astype(numpy.float32),
-    #     "keys": numpy.array([seed, hashed_key, k]).astype(numpy.float32),
-    #     "gal_params": numpy.stack(
-    #         [
-    #             int_e1,
-    #             int_e2,
-    #             obs_e1,
-    #             obs_e2,
-    #             params["x"],
-    #             params["y"],
-    #             params["mag"],
-    #             params["hlr"],
-    #             params["sersic"],
-    #         ],
-    #     ).astype(numpy.float32),
-    # }
+    return hashed_key, dict_results

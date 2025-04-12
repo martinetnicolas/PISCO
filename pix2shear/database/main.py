@@ -4,11 +4,10 @@ from multiprocessing import Pool, cpu_count
 import numpy
 import tensorflow_datasets as tfds
 from functions_images import create_images
-from functions_lhs import draw_lhs_gal, draw_lhs_img
+from functions_lhs import adding_cosmos_catalog_galaxies, draw_lhs_gal, draw_lhs_img
 from functions_projections import project_lhs
 from tqdm import tqdm
-
-DTYPE = numpy.float32
+from utils import DTYPE
 
 
 class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
@@ -22,9 +21,13 @@ class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
         shape_noise_sub,
         style_psf,
         lhs_pos,
+        percentage_cosmos,
+        type_cosmos,
     ):
         self.nb_of_samples = nb_of_samples
         self.seed_database = seed_database
+        self.percentage_cosmos = percentage_cosmos
+        self.type_cosmos = type_cosmos
 
         self.shape_noise_add = shape_noise_add
         self.shape_noise_sub = shape_noise_sub
@@ -108,6 +111,13 @@ class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
             hypercube=lhs_gal, ellips_style=self.ellips_style, pixel_out=self.pixel_out
         )
 
+        # taking real/parametric galaxies from cosmos catalogs
+        nb_galaxies_cosmos = int(self.percentage_cosmos * self.nb_total_galaxies / 100)
+        replace_indices = numpy.random.choice(
+            a=self.nb_total_galaxies, size=nb_galaxies_cosmos, replace=False
+        )
+        lhs_gal = adding_cosmos_catalog_galaxies(lhs_gal, numpy.sort(replace_indices))
+
         # prepocess for multiprocess
         lhs_gal = self.divide_for_multiprocess(lhs_gal, self.nb_of_samples)
 
@@ -123,6 +133,7 @@ class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
                 shape_noise_sub=self.shape_noise_sub,
                 style_psf=self.style_psf,
                 total_nb_of_samples=self.total_nb_of_samples,
+                type_cosmos=self.type_cosmos,
                 k=k,
             )
 

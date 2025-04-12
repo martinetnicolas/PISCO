@@ -4,15 +4,15 @@ from scipy import stats
 from utils import scale
 
 
-def apply_uniform_transformation(lhs_gal):
+def apply_uniform_transformation(array):
     max_radius = 0.6
-    radii = numpy.sqrt(lhs_gal[:, 0] * max_radius**2)
-    angles = lhs_gal[:, 1] * 2 * numpy.pi
+    radii = numpy.sqrt(array[:, 0] * max_radius**2)
+    angles = array[:, 1] * 2 * numpy.pi
 
-    lhs_gal[:, 0] = radii * numpy.cos(angles)
-    lhs_gal[:, 1] = radii * numpy.sin(angles)
+    array[:, 0] = radii * numpy.cos(angles)
+    array[:, 1] = radii * numpy.sin(angles)
 
-    return lhs_gal
+    return array
 
 
 def checky(samples):
@@ -98,9 +98,9 @@ def generate_positions(array, pixel_out):
 def project_lhs(hypercube, ellips_style, pixel_out):
     # ellipticities (column 0 & 1)
     if ellips_style == "uniform":
-        hypercube = apply_uniform_transformation(hypercube)
+        hypercube[:, :2] = apply_uniform_transformation(hypercube[:, :2])
     elif ellips_style == "gaussian":
-        hypercube = apply_gaussian_transformation(hypercube)
+        hypercube[:, :2] = apply_gaussian_transformation(hypercube[:, :2])
 
     # (column 2 & 3 for offsets)
 

@@ -3,16 +3,18 @@ from pathlib import Path
 
 import tensorflow_datasets as tfds
 from main import PiscoEuclid
-from utils import print_csv_images_galaxies, search_folder
+from utils import DIR_DATASETS, DIRS, print_csv_images_galaxies
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "1.1.3"
+VERSION = "1.1.1"
 NB_OF_SAMPLES = 100
+PERCENTAGE_COSMOS = 10
+TYPE_COSMOS = "real"  # "real" or "parametric"
 ELLIPS_STYLE = "gaussian"  # gaussian / uniform probability for ellipticities
-PIXELS_OUT = True  # use a 10 pixels band-free around the image
-SHAPE_NOISE_ADD = True
-SHAPE_NOISE_SUB = True
-LHS_POS = True  # x,y included in LHS
+PIXELS_OUT = False  # use a 10 pixels band-free around the image
+SHAPE_NOISE_ADD = False
+SHAPE_NOISE_SUB = False
+LHS_POS = False  # x,y included in LHS
 SEED_DATABASE = 22
 PSF = "airy"  # airy / euclid
 STYLE = "pisco_euclid"
@@ -35,9 +37,7 @@ release_notes = {
 # CREATE DB ---------------------------------------------------------------------------------
 PiscoEuclid.BUILDER_CONFIGS = [
     tfds.core.BuilderConfig(
-        name=str(search_folder(STYLE)),
-        version=tfds.core.Version(VERSION),
-        release_notes=release_notes,
+        name=str(DIRS[STYLE]), version=tfds.core.Version(VERSION), release_notes=release_notes
     )
 ]
 PiscoEuclid(
@@ -49,10 +49,12 @@ PiscoEuclid(
     shape_noise_sub=SHAPE_NOISE_SUB,
     style_psf=PSF,
     lhs_pos=LHS_POS,
+    percentage_cosmos=PERCENTAGE_COSMOS,
+    type_cosmos=TYPE_COSMOS,
 ).download_and_prepare()
 
 # allow permissions to pisco group
-DIR_VERSION = search_folder(STYLE) / VERSION
+DIR_VERSION = DIRS[STYLE] / VERSION
 DIR_VERSION.chmod(0o1770)
 
 # deleting tdfs default folder
@@ -61,9 +63,7 @@ shutil.rmtree(Path.home() / "tensorflow_datasets")
 
 # CREATE CSV ---------------------------------------------------------------------------------
 SPLIT = "dataset"
-dataset = tfds.load(
-    f"{STYLE}:{VERSION}", split=f"{SPLIT}[:100%]", data_dir=search_folder(name="DATASETS")
-)
+dataset = tfds.load(f"{STYLE}:{VERSION}", split=f"{SPLIT}[:100%]", data_dir=DIR_DATASETS)
 print("number of samples", TOTAL_ELEMENTS := dataset.cardinality().numpy())
 
 # fmt: off

@@ -1,7 +1,8 @@
 import numpy
 from pandas import read_csv
 from scipy import stats
-from utils import scale, search_folder
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
+from utils import DIR_DATASETS, DIRS, scale
 
 
 def draw_lhs(dim, seed, n_samples):
@@ -86,7 +87,6 @@ def draw_lhs_gal(lhs_pos, seed, nb_total_galaxies):
 
 
 def redshift_vs_shear_data():
-    DIR_DATASETS = search_folder(name="DATASETS")
     file = read_csv(DIR_DATASETS / "data_z_shear.csv")
     return file["redshift"], 2 * file["shear"]
 
@@ -95,3 +95,65 @@ def fit_g_vs_z(z, g, deg=1):
     coeffs_inv = numpy.polyfit(z, g, deg=deg)
     inverse_function = numpy.poly1d(coeffs_inv)
     return inverse_function
+
+
+def normalise(catalog_features, test_points, scaling):
+    if scaling == "min_max":
+        scaler = MinMaxScaler().fit(catalog_features)
+    elif scaling == "z_score":
+        scaler = StandardScaler().fit(catalog_features)
+
+    catalog_features_norm = scaler.transform(catalog_features)
+    test_points_norm = scaler.transform(test_points)
+
+    return catalog_features_norm, test_points_norm
+
+
+def euclidian_style(diff):
+    euclidian_distances = numpy.linalg.norm(diff, axis=2)
+    euclidian_closest_idx = numpy.argmin(euclidian_distances, axis=1)
+    return euclidian_closest_idx
+
+
+def maha_style(catalog_features_norm, diff):
+    cov = numpy.cov(catalog_features_norm, rowvar=False)
+    inv_cov = numpy.linalg.inv(cov)
+
+    mahalanobis_distances = numpy.sqrt(numpy.einsum("...i,ij,...j->...", diff, inv_cov, diff))
+    mahalanobis_closest_idx = numpy.argmin(mahalanobis_distances, axis=1)
+
+    return mahalanobis_closest_idx
+
+
+def adding_cosmos_catalog_galaxies(lhs_gal, replace_indices):
+    SCALING = "z_score"  # "min_max" "z_score"
+    NORMA = "euclid"  # "euclid" "mahalanobis"
+
+    if replace_indices.shape[0] != 0:
+        changing_samples = lhs_gal[:, 4:7][replace_indices]
+        filtered_params = read_csv(DIRS["cosmos"] / "filtered_params.csv")
+
+        catalog_features = filtered_params[["mag_auto", "hlr", "sersic"]].values
+        catalog_selection = filtered_params[["indices", "sample"]].values
+
+        catalog_features_norm, test_points_norm = normalise(
+            catalog_features, changing_samples, SCALING
+        )
+        diff = test_points_norm[:, numpy.newaxis, :] - catalog_features_norm[numpy.newaxis, :, :]
+
+        if NORMA == "euclid":
+            matched_idx = euclidian_style(diff)
+        elif NORMA == "mahalanobis":
+            matched_idx = maha_style(catalog_features_norm, diff)
+
+        matched_selection = catalog_selection[matched_idx]
+        matched_features = catalog_features[matched_idx]
+
+    new_columns = numpy.zeros((lhs_gal.shape[0], 2), dtype=lhs_gal.dtype) - 1
+    lhs_gal = numpy.hstack((lhs_gal, new_columns))
+
+    if replace_indices.shape[0] != 0:
+        lhs_gal[replace_indices, 4:7] = matched_features
+        lhs_gal[replace_indices, 9:11] = matched_selection
+
+    return lhs_gal

@@ -7,9 +7,11 @@ from pathlib import Path
 
 import galsim
 import numpy
-from astropy import coordinates, io, units
+from astropy import io
 from joblib import Parallel, delayed, parallel_backend
 from pandas import DataFrame, read_csv
+
+DTYPE = numpy.float32
 
 
 def find_directory(name, init_directory):
@@ -24,6 +26,16 @@ def search_folder(name):
     else:
         search_dir = "/net/GECO/pisco/PIX2SHEAR"
     return find_directory(name, search_dir)
+
+
+DIR_DATASETS = search_folder(name="DATASETS")
+DIRS = {
+    "images_cosmos": DIR_DATASETS / "images" / "cosmos",
+    "cosmos": DIR_DATASETS / "cosmos",
+    "pisco_euclid": DIR_DATASETS / "pisco_euclid",
+    "psf": DIR_DATASETS / "psf",
+    "images": DIR_DATASETS / "images",
+}
 
 
 def write_fits(data, path, sampling):
@@ -110,45 +122,6 @@ def check_unique(df, column):
     unique_vals, counts = numpy.unique(df[column].to_numpy(), return_counts=True)
     non_unique_count = numpy.sum(counts > 1)
     return unique_vals, counts, non_unique_count
-
-
-def write_non_overlapped_with_radius(
-    REAL_GALAXIES, cat23, cat25, cat23_param, cat25_param, radius=0.1
-):
-    # common = set(cat23["IDENT"]) & set(cat25["IDENT"])
-
-    coords23 = coordinates.SkyCoord(ra=cat23["RA"] * units.deg, dec=cat23["DEC"] * units.deg)
-    coords25 = coordinates.SkyCoord(ra=cat25["RA"] * units.deg, dec=cat25["DEC"] * units.deg)
-
-    idx, sep2d, _ = coords23.match_to_catalog_sky(coords25)
-
-    max_sep = radius * units.arcsec
-
-    matched = sep2d < max_sep
-
-    only_in_23 = ~matched
-
-    only_in_25 = numpy.ones(len(cat25), dtype=bool)
-    only_in_25[idx[matched]] = False
-
-    only_23_rows = cat23[only_in_23]
-    only_25_rows = cat25[only_in_25]
-    only_23_param_rows = cat23_param[only_in_23]
-    only_25_param_rows = cat25_param[only_in_25]
-
-    only_23_rows.write(REAL_GALAXIES / "real_galaxy_catalog_23.5_non_overlap.fits", overwrite=True)
-    only_25_rows.write(REAL_GALAXIES / "real_galaxy_catalog_25.2_non_overlap.fits", overwrite=True)
-
-    only_23_param_rows.write(
-        REAL_GALAXIES / "real_galaxy_catalog_23.5_fits_non_overlap.fits", overwrite=True
-    )
-    only_25_param_rows.write(
-        REAL_GALAXIES / "real_galaxy_catalog_25.2_fits_non_overlap.fits", overwrite=True
-    )
-
-    print(
-        f"Unique 23.5: {len(only_23_rows)} galaxies & Unique 25.2: {len(only_25_rows)} galaxies",
-    )
 
 
 def get_pairs(pairs_img, hypercube_img, pairs_gal, hypercube_gal):
