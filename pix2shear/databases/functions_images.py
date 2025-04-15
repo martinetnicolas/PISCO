@@ -147,8 +147,8 @@ def create_images(
     shape_noise_add,
     shape_noise_sub,
     style_psf,
-    total_nb_of_samples,
     type_cosmos,
+    big_psf,
     k,
 ):
     # get seed for noise and args for galsim
@@ -207,21 +207,16 @@ def create_images(
             CHOICE = int(params["index_cosmos"][i])
             SAMPLE = str(params["sample_cosmos"][i])
 
-            common_kwargs = dict(
+            cosmos_cat = galsim.COSMOSCatalog(
+                sample=SAMPLE, dir=DIRS["cosmos"], exclusion_level="none", exptime=EXPTIME
+            )
+            gal = cosmos_cat.makeGalaxy(
                 index=CHOICE,
+                gal_type=type_cosmos,
                 noise_pad_size=0,
-                deep=False,
                 sersic_prec=0.0,
                 gsparams=GSPARAMS,
             )
-            cosmos_cat = galsim.COSMOSCatalog(
-                sample=SAMPLE,
-                dir=DIRS["cosmos"],
-                use_real=True,
-                exclusion_level="none",
-                exptime=EXPTIME,
-            )
-            gal = cosmos_cat.makeGalaxy(gal_type=type_cosmos, **common_kwargs)
 
         else:
             # compute Sersic profile with galsim
@@ -291,14 +286,18 @@ def create_images(
         full_image += noise_image
 
     # psf image
-    full_image_psf = galsim.ImageF(IMG_SIZE, IMG_SIZE)
-    full_image_psf.setOrigin(1, 1)
+    if big_psf:
+        full_image_psf = galsim.ImageF(IMG_SIZE, IMG_SIZE)
+    else:
+        full_image_psf = galsim.ImageF(XSIZE, XSIZE)
+    full_image_psf.setOrigin(0, 0)
     full_image_psf = psf.drawImage(image=full_image_psf, scale=PIXEL_SCALE)
     # full_image_psf.addNoise(noise)
 
     # return args
     dict_results = {
         "image": full_image.array,
+        "image_psf": full_image_psf.array,
         "avg_g": numpy.array([avg_g1, avg_g2]).astype(numpy.float32),
         "avg_obs_e": numpy.array([avg_obs_e1, avg_obs_e2]).astype(numpy.float32),
         "avg_int_e": numpy.array([avg_int_e1, avg_int_e2]).astype(numpy.float32),
@@ -317,8 +316,5 @@ def create_images(
             ],
         ).astype(numpy.float32),
     }
-
-    if total_nb_of_samples <= 50_000:
-        dict_results["image_psf"] = full_image_psf.array
 
     return hashed_key, dict_results

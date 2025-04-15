@@ -1,3 +1,6 @@
+from collections import defaultdict
+from pathlib import Path
+
 import numpy
 from pandas import read_csv
 from scipy import stats
@@ -125,15 +128,34 @@ def maha_style(catalog_features_norm, diff):
     return mahalanobis_closest_idx
 
 
-def adding_cosmos_catalog_galaxies(lhs_gal, replace_indices):
+def dupicates(arr, version):
+    row_groups = defaultdict(list)
+
+    for idx, row in enumerate(arr):
+        row_key = tuple(row)
+        row_groups[row_key].append(idx)
+
+    duplicates = {row: indices for row, indices in row_groups.items() if len(indices) > 1}
+
+    path_save = DIRS["duplicates"] / f"{Path(str(version))}_duplicates_cosmos.npy"
+    numpy.save(file=path_save, arr=duplicates, allow_pickle=True)
+
+
+def adding_cosmos_catalog_galaxies(lhs_gal, replace_indices, version):
     SCALING = "z_score"  # "min_max" "z_score"
     NORMA = "euclid"  # "euclid" "mahalanobis"
 
-    if replace_indices.shape[0] != 0:
-        changing_samples = lhs_gal[:, 4:7][replace_indices]
-        filtered_params = read_csv(DIRS["cosmos"] / "filtered_params.csv")
+    new_columns = numpy.zeros((lhs_gal.shape[0], 2), dtype=lhs_gal.dtype) - 1
+    lhs_gal = numpy.hstack((lhs_gal, new_columns))
 
-        catalog_features = filtered_params[["mag_auto", "hlr", "sersic"]].values
+    if replace_indices.shape[0] != 0:
+        check_columns = [0, 1, 4, 5, 6]  # e1 e2 mag hlr sersic
+        changing_samples = lhs_gal[:, check_columns][replace_indices]
+
+        filtered_params = read_csv(DIRS["cosmos"] / "filtered_params.csv")
+        check_columns_cosmos = ["e1", "e2", "mag", "hlr", "sersic"]
+        catalog_features = filtered_params[check_columns_cosmos].values
+
         catalog_selection = filtered_params[["indices", "sample"]].values
 
         catalog_features_norm, test_points_norm = normalise(
@@ -149,11 +171,9 @@ def adding_cosmos_catalog_galaxies(lhs_gal, replace_indices):
         matched_selection = catalog_selection[matched_idx]
         matched_features = catalog_features[matched_idx]
 
-    new_columns = numpy.zeros((lhs_gal.shape[0], 2), dtype=lhs_gal.dtype) - 1
-    lhs_gal = numpy.hstack((lhs_gal, new_columns))
+        dupicates(matched_selection, version)
 
-    if replace_indices.shape[0] != 0:
-        lhs_gal[replace_indices, 4:7] = matched_features
+        lhs_gal[numpy.ix_(replace_indices, check_columns)] = matched_features
         lhs_gal[replace_indices, 9:11] = matched_selection
 
     return lhs_gal

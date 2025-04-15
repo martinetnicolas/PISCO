@@ -35,6 +35,7 @@ DIRS = {
     "pisco_euclid": DIR_DATASETS / "pisco_euclid",
     "psf": DIR_DATASETS / "psf",
     "images": DIR_DATASETS / "images",
+    "duplicates": DIR_DATASETS / "duplicates",
 }
 
 
@@ -153,6 +154,13 @@ def print_csv_images_galaxies(keys_dataset, all_params, dir, columns_img, column
     hypercube_gal = DataFrame(data=gal_params_csv, columns=columns_gal)
 
     hypercube_gal.to_csv(dir / "galaxies_parameters_true.csv", index=False)
+
+
+def extract_keys_fn(keys):
+    def _extract_keys(x):
+        return {key: x[key] for key in keys}
+
+    return _extract_keys
 
 
 def extract_image(x):

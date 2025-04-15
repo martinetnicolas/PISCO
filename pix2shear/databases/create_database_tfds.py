@@ -3,12 +3,12 @@ from pathlib import Path
 
 import tensorflow_datasets as tfds
 from main import PiscoEuclid
-from utils import DIR_DATASETS, DIRS, print_csv_images_galaxies
+from utils import DIR_DATASETS, DIRS, extract_keys_fn, print_csv_images_galaxies
 
 # USER DATA ---------------------------------------------------------------------------------
 VERSION = "1.1.1"
-NB_OF_SAMPLES = 100
-PERCENTAGE_COSMOS = 10
+NB_OF_SAMPLES = 1000
+PERCENTAGE_COSMOS = 0
 TYPE_COSMOS = "real"  # "real" or "parametric"
 ELLIPS_STYLE = "gaussian"  # gaussian / uniform probability for ellipticities
 PIXELS_OUT = False  # use a 10 pixels band-free around the image
@@ -17,6 +17,7 @@ SHAPE_NOISE_SUB = False
 LHS_POS = False  # x,y included in LHS
 SEED_DATABASE = 22
 PSF = "airy"  # airy / euclid
+BIG_PSF = True  # image or patch size
 STYLE = "pisco_euclid"
 release_notes = {
     "2.*.*": "lhs + g round(3) + 10 gal/patch + g<=|0.06| + e gauss + seeds 22 + airy",
@@ -34,6 +35,7 @@ release_notes = {
 }
 
 
+# if __name__ == "__main__":
 # CREATE DB ---------------------------------------------------------------------------------
 PiscoEuclid.BUILDER_CONFIGS = [
     tfds.core.BuilderConfig(
@@ -51,6 +53,7 @@ PiscoEuclid(
     lhs_pos=LHS_POS,
     percentage_cosmos=PERCENTAGE_COSMOS,
     type_cosmos=TYPE_COSMOS,
+    big_psf=BIG_PSF,
 ).download_and_prepare()
 
 # allow permissions to pisco group
@@ -60,18 +63,17 @@ DIR_VERSION.chmod(0o1770)
 # deleting tdfs default folder
 shutil.rmtree(Path.home() / "tensorflow_datasets")
 
-
 # CREATE CSV ---------------------------------------------------------------------------------
 SPLIT = "dataset"
 dataset = tfds.load(f"{STYLE}:{VERSION}", split=f"{SPLIT}[:100%]", data_dir=DIR_DATASETS)
 print("number of samples", TOTAL_ELEMENTS := dataset.cardinality().numpy())
 
-# fmt: off
 keys_dataset = ["avg_g", "avg_int_e", "avg_obs_e", "keys", "gal_params"]
-columns_img = ["avg_g1", "avg_g2", "avg_int_e1", "avg_int_e2", "avg_obs_e1", "avg_obs_e2", "seeds", "hashed_key", "k"] # noqa
-columns_gal=["int_e1", "int_e2", "obs_e1", "obs_e2", "x", "y", "mag", "hlr", "sersic"]
-all_params_dataset = dataset.map(lambda x: {key: x[key] for key in keys_dataset})
+all_params_dataset = dataset.map(extract_keys_fn(keys_dataset))
 
 print("csv creation")
+# fmt: off
+columns_img = ["avg_g1", "avg_g2", "avg_int_e1", "avg_int_e2", "avg_obs_e1", "avg_obs_e2", "seeds", "hashed_key", "k"] # noqa
+columns_gal = ["int_e1", "int_e2", "obs_e1", "obs_e2", "x", "y", "mag", "hlr", "sersic"]
 all_params = list(all_params_dataset.as_numpy_iterator())
-print_csv_images_galaxies(keys_dataset, all_params,DIR_VERSION,columns_img,columns_gal)
+print_csv_images_galaxies(keys_dataset, all_params, DIR_VERSION, columns_img, columns_gal)
