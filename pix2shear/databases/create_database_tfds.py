@@ -6,10 +6,11 @@ from main import PiscoEuclid
 from utils import DIR_DATASETS, DIRS, extract_keys_fn, print_csv_images_galaxies
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "1.1.1"
+VERSION = "1.1.2"
 NB_OF_SAMPLES = 100
 PERCENTAGE_COSMOS = 0
 TYPE_COSMOS = "real"  # "real" or "parametric"
+NB_GALAXIES = 1
 ELLIPS_STYLE = "gaussian"  # gaussian / uniform probability for ellipticities
 PIXELS_OUT = False  # use a 10 pixels band-free around the image
 SHAPE_NOISE_ADD = False
@@ -54,6 +55,7 @@ PiscoEuclid(
     percentage_cosmos=PERCENTAGE_COSMOS,
     type_cosmos=TYPE_COSMOS,
     big_psf=BIG_PSF,
+    nb_galaxies=NB_GALAXIES,
 ).download_and_prepare()
 
 # allow permissions to pisco group

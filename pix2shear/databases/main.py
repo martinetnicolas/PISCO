@@ -24,6 +24,7 @@ class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
         percentage_cosmos,
         type_cosmos,
         big_psf,
+        nb_galaxies,
     ):
         self.nb_of_samples = nb_of_samples
         self.seed_database = seed_database
@@ -40,7 +41,7 @@ class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
 
         self.images_size = (352, 352)
         self.patch_size = (64, 64)
-        self.nb_galaxies = 10
+        self.nb_galaxies = nb_galaxies
         self.nb_galaxies_parameters = 9
 
         self.slice_shape_noise = (self.shape_noise_add + 1) * (self.shape_noise_sub + 1)
@@ -91,9 +92,8 @@ class PiscoEuclid(tfds.core.GeneratorBasedBuilder):
     def _split_generators(self, dl_manager: tfds.download.DownloadManager):
         return {"dataset": self._generate_examples()}
 
-    @staticmethod
-    def divide_for_multiprocess(hc, nb_of_samples):
-        list_nb_gal = [10] * nb_of_samples
+    def divide_for_multiprocess(self, hc, nb_of_samples):
+        list_nb_gal = [self.nb_galaxies] * nb_of_samples
 
         nb_of_gal = numpy.array(list_nb_gal)
         nb_of_gal_to_divide = nb_of_gal.astype(int).tolist()
