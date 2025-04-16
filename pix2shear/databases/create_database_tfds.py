@@ -59,10 +59,10 @@ PiscoEuclid(
 # allow permissions to pisco group
 DIR_VERSION = DIRS[STYLE] / VERSION
 DIR_VERSION.chmod(0o1770)
-(DIR_DATASETS / Path(".config") / "metadata.json").chmod(0o777)
 
 # deleting tdfs default folder
 shutil.rmtree(Path.home() / "tensorflow_datasets")
+(DIR_DATASETS / Path(".config") / "metadata.json").unlink()
 
 # CREATE CSV ---------------------------------------------------------------------------------
 SPLIT = "dataset"
