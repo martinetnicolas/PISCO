@@ -51,13 +51,13 @@ def apply_gaussian_transformation(lhs_samples_gal):
     return lhs_samples_gal
 
 
-def get_magnitude(lhs_gal, inv_cdf_mag):
-    lhs_gal = inv_cdf_mag(lhs_gal)
+def get_magnitude(array, inv_cdf_mag):
+    inv_array = inv_cdf_mag(array)
 
-    closest_half = numpy.around(lhs_gal * 2) / 2  # closest half categories
+    closest_half = numpy.around(inv_array * 2) / 2  # closest half categories
     closest_half[closest_half == 20] = 20.5  # to avoid 20.0
 
-    return lhs_gal, closest_half
+    return inv_array, closest_half
 
 
 def get_half_light_radius(lhs_gal, closest_half, inv_cdfs_hlr):
@@ -105,16 +105,16 @@ def project_lhs(hypercube, ellips_style, pixel_out):
     # (column 2 & 3 for offsets)
 
     # inverse CDFs for physical mg/hlr/sersic
-    inv_cdf_mag, inv_cdfs_ns, inv_cdfs_hlr, _ = get_inv_cdfs()
+    inv_cdf_mag_fn, inv_cdfs_ns_fn, inv_cdfs_hlr_fn, _ = get_inv_cdfs()
 
     # mag
-    hypercube[:, 4], closest_half = get_magnitude(hypercube[:, 4], inv_cdf_mag)
+    hypercube[:, 4], closest_half = get_magnitude(hypercube[:, 4], inv_cdf_mag_fn)
 
     # hlr
-    hypercube[:, 5] = get_half_light_radius(hypercube[:, 5], closest_half, inv_cdfs_hlr)
+    hypercube[:, 5] = get_half_light_radius(hypercube[:, 5], closest_half, inv_cdfs_hlr_fn)
 
     # sersic
-    hypercube[:, 6] = get_sersic_index(hypercube[:, 6], closest_half, inv_cdfs_ns)
+    hypercube[:, 6] = get_sersic_index(hypercube[:, 6], closest_half, inv_cdfs_ns_fn)
 
     # positions
     hypercube[:, 7] = generate_positions(hypercube[:, 7], pixel_out)

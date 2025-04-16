@@ -7,7 +7,7 @@ from utils import DIR_DATASETS, DIRS, extract_keys_fn, print_csv_images_galaxies
 
 # USER DATA ---------------------------------------------------------------------------------
 VERSION = "1.1.1"
-NB_OF_SAMPLES = 1000
+NB_OF_SAMPLES = 100
 PERCENTAGE_COSMOS = 0
 TYPE_COSMOS = "real"  # "real" or "parametric"
 ELLIPS_STYLE = "gaussian"  # gaussian / uniform probability for ellipticities
@@ -59,6 +59,7 @@ PiscoEuclid(
 # allow permissions to pisco group
 DIR_VERSION = DIRS[STYLE] / VERSION
 DIR_VERSION.chmod(0o1770)
+(DIR_DATASETS / Path(".config") / "metadata.json").chmod(0o777)
 
 # deleting tdfs default folder
 shutil.rmtree(Path.home() / "tensorflow_datasets")

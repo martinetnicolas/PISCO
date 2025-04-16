@@ -29,8 +29,7 @@ def unpack_lhs(arguments):
 
 def get_constants():
     pixel_scale = 0.1  # pix size in arcsec (sizes in input catalog in pixels)
-    xsize = 64  # gal patch size in pixels (6.4'')
-    ysize = 64  # gal patch size in pixels (6.4'')
+    patch_size = 64  # gal patch size in pixels (6.4'')
     image_size = 352  # image size in pixels (0.59')
     t_exp = 3 * 565  # s
     gain = 3.1  # e-/ADU
@@ -38,7 +37,7 @@ def get_constants():
     sky_bkg = 22.35  # mag/arcsec2
     zp = 24.0  # mag
 
-    return pixel_scale, xsize, ysize, image_size, t_exp, gain, readoutnoise, sky_bkg, zp
+    return pixel_scale, patch_size, image_size, t_exp, gain, readoutnoise, sky_bkg, zp
 
 
 def build_psf(style):
@@ -165,7 +164,7 @@ def create_images(
     params = unpack_lhs(arguments)
 
     # constant arguments
-    PIXEL_SCALE, XSIZE, YSIZE, IMG_SIZE, EXPTIME, GAIN, readoutnoise, SKY_BKG, ZP = get_constants()
+    PIXEL_SCALE, PATCH_SIZE, IMG_SIZE, EXPTIME, GAIN, readoutnoise, SKY_BKG, ZP = get_constants()
 
     # psf
     psf = build_psf(style_psf)
@@ -247,7 +246,7 @@ def create_images(
         )
 
         # draw galaxy
-        stamp = galsim.ImageF(XSIZE, YSIZE, scale=PIXEL_SCALE)
+        stamp = galsim.ImageF(PATCH_SIZE, PATCH_SIZE, scale=PIXEL_SCALE)
         final.drawImage(image=stamp, wcs=full_image.wcs.local(image_pos), offset=offset)
         stamp.setCenter(ix_nominal, iy_nominal)
 
@@ -256,15 +255,15 @@ def create_images(
         full_image[bounds] += stamp[bounds]
 
         # # pixeled-binned redshift image
-        # full_image_z = galsim.ImageF(XSIZE, YSIZE)
+        # full_image_z = galsim.ImageF(PATCH_SIZE, PATCH_SIZE)
         # full_image_z.setOrigin(1, 1)
         # pos_gal = galsim.PositionI(int(round(ix_nominal)), int(round(iy_nominal)))
         # full_image_z[pos_gal.x, pos_gal.y] = bin_indices
 
         # # flux-binned redshift image
-        # label_stamp = galsim.ImageI(XSIZE, YSIZE, scale=PIXEL_SCALE)
+        # label_stamp = galsim.ImageI(PATCH_SIZE, PATCH_SIZE, scale=PIXEL_SCALE)
         # label_stamp.setCenter(ix_nominal, iy_nominal)
-        # mask = create_mask_over_flux(PIXEL_SCALE, params["hlr"][i], XSIZE, YSIZE)
+        # mask = create_mask_over_flux(PIXEL_SCALE, params["hlr"][i], PATCH_SIZE, PATCH_SIZE)
         # label_stamp.array[mask] = bin_indices
         # bounds_pixel = label_stamp.bounds & full_image_z.bounds
         # full_image_z = print_flux_binned_redshift(full_image_z, label_stamp, bounds_pixel)
@@ -289,7 +288,7 @@ def create_images(
     if big_psf:
         full_image_psf = galsim.ImageF(IMG_SIZE, IMG_SIZE)
     else:
-        full_image_psf = galsim.ImageF(XSIZE, XSIZE)
+        full_image_psf = galsim.ImageF(PATCH_SIZE, PATCH_SIZE)
     full_image_psf.setOrigin(0, 0)
     full_image_psf = psf.drawImage(image=full_image_psf, scale=PIXEL_SCALE)
     # full_image_psf.addNoise(noise)
