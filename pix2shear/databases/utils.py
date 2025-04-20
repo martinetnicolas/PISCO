@@ -7,45 +7,39 @@ from pathlib import Path
 
 import galsim
 import numpy
+import tensorflow
 from astropy import io
 from joblib import Parallel, delayed, parallel_backend
 from pandas import DataFrame, read_csv
 
-DTYPE = numpy.float32
+DTYPE_16 = numpy.float16
+DTYPE_32 = numpy.float32
 
-
-def find_directory(name, init_directory):
-    directory_path = Path(init_directory)
-    matching_folders = list(directory_path.glob(f"**/{name}"))
-    return matching_folders[0]
+RED = "\033[38;2;255;80;80m"
+BLUE = "\033[38;2;80;180;255m"
+RESET = "\033[0m"
 
 
 def search_folder(name):
     if Path.cwd().parts[1] == "home":
-        search_dir = "/home"
+        search_dir = Path("/home")
     else:
-        search_dir = "/net/GECO/pisco/PIX2SHEAR"
-    return find_directory(name, search_dir)
+        search_dir = Path("/net/GECO/pisco/PIX2SHEAR")
+    matching_folders = list(search_dir.glob(f"**/{name}"))
+    return matching_folders[0]
 
 
 DIR_DATASETS = search_folder(name="DATASETS")
 DIRS = {
-    "images_cosmos": DIR_DATASETS / "images" / "cosmos",
+    "cosmos_plots": DIR_DATASETS / "cosmos_plots",
     "cosmos": DIR_DATASETS / "cosmos",
     "pisco_euclid": DIR_DATASETS / "pisco_euclid",
+    "pisco_euclid_se": DIR_DATASETS / "pisco_euclid_se",
+    "pisco_euclid_plots": DIR_DATASETS / "pisco_euclid_plots",
     "psf": DIR_DATASETS / "psf",
-    "images": DIR_DATASETS / "images",
+    "psf_plots": DIR_DATASETS / "psf_plots",
     "duplicates": DIR_DATASETS / "duplicates",
 }
-
-
-def write_fits(data, path, sampling):
-    header = io.fits.Header()
-    header["SAMPLING"] = sampling
-    hdu = io.fits.PrimaryHDU(data=data, header=header)
-    hdulist = io.fits.HDUList([hdu])
-    hdulist.writeto(path, overwrite=True)
-    hdulist.close()
 
 
 def load_metrics(arg):
@@ -95,7 +89,7 @@ def save_psf(direc, style, psf, image_size, pixel_scale, with_noise=False):
     hdul.writeto(fileobj=f"{name}.fits", overwrite=True)
 
 
-def get_indices(hypercube_gal_params):
+def get_indices_snc(hypercube_gal_params):
     cols_to_groupby = [
         col
         for col in hypercube_gal_params.columns
@@ -156,6 +150,7 @@ def print_csv_images_galaxies(keys_dataset, all_params, dir, columns_img, column
     hypercube_gal.to_csv(dir / "galaxies_parameters_true.csv", index=False)
 
 
+@tensorflow.autograph.experimental.do_not_convert
 def extract_keys_fn(keys):
     def _extract_keys(x):
         return {key: x[key] for key in keys}
@@ -177,3 +172,10 @@ def slice_csv(file_path, nb_total):
 
 def generate_seed():
     return (int(time.time() * 1e6) ^ random.getrandbits(32)) % (2**32 - 1)
+
+
+def render_psf(psf, size, dtype, scale):
+    img = galsim.ImageF(size, size)
+    img.setOrigin(0, 0)
+    img = psf.drawImage(image=img, scale=scale)
+    return img.array.astype(dtype)

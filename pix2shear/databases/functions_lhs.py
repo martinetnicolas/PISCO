@@ -2,133 +2,110 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy
+from functions_cdfs import get_half_light_radius, get_inv_cdfs, get_magnitude, get_sersic_index
 from pandas import read_csv
 from scipy import stats
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
-from utils import DIR_DATASETS, DIRS, scale
+from utils import DIRS, RED, RESET, scale
+
+# --------------------------------------------------------------------------------------------------
 
 
-def draw_lhs(dim, seed, n_samples):
+def draw_lhs(seed, n_samples, dim):
     lhs_sampler = stats.qmc.LatinHypercube(
         d=dim, scramble=False, optimization=None, strength=1, seed=seed
     )
     return lhs_sampler.random(n=n_samples)
 
 
-def generate_shear_scaled(
-    g1_init, g2_init, shunsheng_fn, z_grid, z_pdf, g_magnitude, sampler="photoz_dist"
-):
-    n_samples = g1_init.shape[0]
-    if sampler == "uniform":
-        z_samples = numpy.random.uniform(0.2, 2.5, size=n_samples)
-
-    elif sampler == "photoz_dist":
-        z_samples = numpy.random.choice(z_grid, size=n_samples, p=z_pdf / numpy.sum(z_pdf))
-
-    g_target = shunsheng_fn(z_samples)
-
-    sorted_idx = numpy.argsort(g_magnitude)
-    g_target_sorted = numpy.sort(g_target)
-
-    scale = g_target_sorted / (g_magnitude[sorted_idx] + 1e-8)
-
-    g1_scaled = g1_init[sorted_idx] * scale
-    g2_scaled = g2_init[sorted_idx] * scale
-    z_sorted = z_samples[sorted_idx]
-
-    return z_sorted, g1_scaled, g2_scaled
+def mask_big_ellipticites(samples):
+    squares_sum = numpy.sqrt(numpy.square(samples[:, 0]) + numpy.square(samples[:, 1]))
+    mask = squares_sum > 0.7
+    return mask
 
 
-def draw_redshift(g1_init, g2_init):
-    z_grid = numpy.linspace(0.2, 2.5, 10000)
-    z_pdf = z_grid**2 * numpy.exp(-z_grid / 0.8)
+def new_sample(number_of_outsider):
+    loc = 0
+    scale = 0.26
+    seed = numpy.random.randint(0, 2**32 - 1)
 
-    # fit function g vs z
-    z_data, g_data = redshift_vs_shear_data()
-    shunsheng_fn = fit_g_vs_z(z_data, g_data, deg=1)
+    adding_lhs_samples = draw_lhs(seed, n_samples=number_of_outsider, dim=2)
 
-    # compute magnitudes from the initial g1, g2 vectors
-    g_magnitude = numpy.sqrt(g1_init**2 + g2_init**2)
+    adding_lhs_samples[:, 0] = stats.norm.ppf(adding_lhs_samples[:, 0], loc=loc, scale=scale)
+    adding_lhs_samples[:, 1] = stats.norm.ppf(adding_lhs_samples[:, 1], loc=loc, scale=scale)
 
-    # generate shear with target magnitudes
-    z, g1_scaled, g2_scaled = generate_shear_scaled(
-        g1_init, g2_init, shunsheng_fn, z_grid, z_pdf, g_magnitude
-    )
-    return z, g1_scaled, g2_scaled
+    return adding_lhs_samples
 
 
-def draw_lhs_img(seed, n_samples, with_redshift=False, decimals=3):
-    hypercube = draw_lhs(2, seed, n_samples)
+def ellips_gaussian_transformation(array):
+    loc = 0
+    scale = 0.26
+    array = stats.norm.ppf(array, loc=loc, scale=scale)
 
-    if decimals == 2:
-        max_shears = 0.065
-    elif decimals == 3:
-        max_shears = 0.0605
-    hypercube = scale(hypercube, low=-max_shears, high=max_shears)
+    mask = mask_big_ellipticites(array)
+    number_of_outsider = numpy.sum(mask)
 
-    if with_redshift:
-        z, hypercube[:, 0], hypercube[:, 1] = draw_redshift(hypercube[:, 0], hypercube[:, 1])
+    while number_of_outsider != 0:
+        print("number_of_outsider", number_of_outsider)
+        new_samples = new_sample(number_of_outsider)
+        array[mask] = new_samples
+
+        mask = mask_big_ellipticites(array)
+        number_of_outsider = numpy.sum(mask)
+
+    return array
+
+
+def ellips_uniform_transformation(array):
+    max_radius = 0.6
+    radii = numpy.sqrt(array[:, 0] * max_radius**2)
+    angles = array[:, 1] * 2 * numpy.pi
+
+    array[:, 0] = radii * numpy.cos(angles)
+    array[:, 1] = radii * numpy.sin(angles)
+
+    return array
+
+
+# create 10 pixels band-free galaxy if wanted
+def generate_positions(array, pixel_out, band=10):
+    if pixel_out:
+        new_min, new_max = int(band), int(352 - band)
     else:
-        z, _, _ = draw_redshift(hypercube[:, 0], hypercube[:, 1])
+        new_min, new_max = 0, 352
 
-    hypercube = numpy.round(hypercube, decimals=decimals)
-    hypercube = numpy.hstack([hypercube, z[:, None]])
+    array = scale(array, low=new_min, high=new_max)
 
-    return hypercube
-
-
-def draw_lhs_gal(lhs_pos, seed, nb_total_galaxies):
-    if lhs_pos:
-        hypercube = draw_lhs(9, seed, n_samples=nb_total_galaxies)
-
-    else:
-        hypercube = draw_lhs(7, seed, n_samples=nb_total_galaxies)
-        pos_xy = draw_lhs(2, seed * 2, n_samples=nb_total_galaxies)
-        hypercube = numpy.hstack([hypercube, pos_xy])
-
-    return hypercube
+    return array
 
 
-def redshift_vs_shear_data():
-    file = read_csv(DIR_DATASETS / "data_z_shear.csv")
-    return file["redshift"], 2 * file["shear"]
-
-
-def fit_g_vs_z(z, g, deg=1):
-    coeffs_inv = numpy.polyfit(z, g, deg=deg)
-    inverse_function = numpy.poly1d(coeffs_inv)
-    return inverse_function
-
-
-def normalise(catalog_features, test_points, scaling):
+def normalise(catalog_features, catalog_targets, scaling):
     if scaling == "min_max":
         scaler = MinMaxScaler().fit(catalog_features)
     elif scaling == "z_score":
         scaler = StandardScaler().fit(catalog_features)
 
     catalog_features_norm = scaler.transform(catalog_features)
-    test_points_norm = scaler.transform(test_points)
+    catalog_targets_norm = scaler.transform(catalog_targets)
 
-    return catalog_features_norm, test_points_norm
-
-
-def euclidian_style(diff):
-    euclidian_distances = numpy.linalg.norm(diff, axis=2)
-    euclidian_closest_idx = numpy.argmin(euclidian_distances, axis=1)
-    return euclidian_closest_idx
+    return catalog_features_norm, catalog_targets_norm
 
 
-def maha_style(catalog_features_norm, diff):
-    cov = numpy.cov(catalog_features_norm, rowvar=False)
-    inv_cov = numpy.linalg.inv(cov)
+def distance(catalog_features_norm, diff, style_norma):
+    if style_norma == "mahalanobis":  # correlation-based distance
+        cov = numpy.cov(catalog_features_norm, rowvar=False)
+        inv_cov = numpy.linalg.inv(cov)
+        distances = numpy.sqrt(numpy.einsum("...i,ij,...j->...", diff, inv_cov, diff))
 
-    mahalanobis_distances = numpy.sqrt(numpy.einsum("...i,ij,...j->...", diff, inv_cov, diff))
-    mahalanobis_closest_idx = numpy.argmin(mahalanobis_distances, axis=1)
+    elif style_norma == "euclidian":
+        distances = numpy.linalg.norm(diff, axis=2)
 
-    return mahalanobis_closest_idx
+    closest_idx = numpy.argmin(distances, axis=1)
+    return closest_idx
 
 
-def dupicates(arr, version):
+# duplicates from cosmos catalogs
+def duplicates(arr, version):
     row_groups = defaultdict(list)
 
     for idx, row in enumerate(arr):
@@ -137,43 +114,108 @@ def dupicates(arr, version):
 
     duplicates = {row: indices for row, indices in row_groups.items() if len(indices) > 1}
 
-    path_save = DIRS["duplicates"] / f"{Path(str(version))}_duplicates_cosmos.npy"
-    numpy.save(file=path_save, arr=duplicates, allow_pickle=True)
+    if len(duplicates) > 0:
+        percentage = 100 * len(duplicates) / arr.shape[0]
+        print(f"{RED} {percentage}% duplicates over {arr.shape[0]} {RESET}")
+        path_save = DIRS["duplicates"] / f"{Path(str(version))}_duplicates_cosmos.npy"
+        numpy.save(file=path_save, arr=duplicates, allow_pickle=True)
 
 
-def adding_cosmos_catalog_galaxies(lhs_gal, replace_indices, version):
-    SCALING = "z_score"  # "min_max" "z_score"
-    NORMA = "euclid"  # "euclid" "mahalanobis"
+# --------------------------------------------------------------------------------------------------
 
-    new_columns = numpy.zeros((lhs_gal.shape[0], 2), dtype=lhs_gal.dtype) - 1
-    lhs_gal = numpy.hstack((lhs_gal, new_columns))
 
-    if replace_indices.shape[0] != 0:
-        check_columns = [0, 1, 4, 5, 6]  # e1 e2 mag hlr sersic
-        changing_samples = lhs_gal[:, check_columns][replace_indices]
+# LHS for image parameters & projection into real space
+def draw_and_project_lhs_img(seed, n_samples, decimals=3):
+    hypercube = draw_lhs(seed, n_samples=n_samples, dim=2)
 
-        filtered_params = read_csv(DIRS["cosmos"] / "filtered_params.csv")
-        check_columns_cosmos = ["e1", "e2", "mag", "hlr", "sersic"]
-        catalog_features = filtered_params[check_columns_cosmos].values
+    # keep lhs uniform at the edge when rounded
+    max_shears = {2: 0.065, 3: 0.0605}[decimals]
+    hypercube = scale(hypercube, low=-max_shears, high=max_shears)
 
-        catalog_selection = filtered_params[["indices", "sample"]].values
+    hypercube = numpy.round(hypercube, decimals=decimals)
 
-        catalog_features_norm, test_points_norm = normalise(
-            catalog_features, changing_samples, SCALING
-        )
-        diff = test_points_norm[:, numpy.newaxis, :] - catalog_features_norm[numpy.newaxis, :, :]
+    return hypercube
 
-        if NORMA == "euclid":
-            matched_idx = euclidian_style(diff)
-        elif NORMA == "mahalanobis":
-            matched_idx = maha_style(catalog_features_norm, diff)
 
-        matched_selection = catalog_selection[matched_idx]
-        matched_features = catalog_features[matched_idx]
+# LHS for galaxies parameters
+def draw_lhs_gal(lhs_pos, seed, nb_total_galaxies):
+    if lhs_pos:
+        hypercube = draw_lhs(seed, n_samples=nb_total_galaxies, dim=9)
 
-        dupicates(matched_selection, version)
+    else:
+        # case galaxies position not included in lhs init (prob useless?)
+        hypercube = draw_lhs(seed, n_samples=nb_total_galaxies, dim=7)
+        pos_xy = draw_lhs(seed * 2, n_samples=nb_total_galaxies, dim=2)
+        hypercube = numpy.hstack([hypercube, pos_xy])
 
-        lhs_gal[numpy.ix_(replace_indices, check_columns)] = matched_features
-        lhs_gal[replace_indices, 9:11] = matched_selection
+    # addings for galaxies from cosmos catalog
+    new_columns = numpy.zeros((hypercube.shape[0], 2), dtype=hypercube.dtype) - 1
+    hypercube = numpy.hstack((hypercube, new_columns))
+
+    return hypercube
+
+
+# project galaxies parameters into real space
+def project_lhs_gal(hypercube, ellips_style, pixel_out):
+    # ellipticities (column 0 & 1)
+    if ellips_style == "uniform":
+        hypercube[:, :2] = ellips_uniform_transformation(hypercube[:, :2])
+    elif ellips_style == "gaussian":
+        hypercube[:, :2] = ellips_gaussian_transformation(hypercube[:, :2])
+
+    # (column 2 & 3 for offsets)
+
+    # inverse CDFs for physical mg/hlr/sersic
+    inv_cdf_mag_fn, inv_cdfs_hlr_fn = get_inv_cdfs()
+
+    # mag
+    hypercube[:, 4], binned_mags = get_magnitude(hypercube[:, 4], inv_cdf_mag_fn)
+
+    # hlr
+    hypercube[:, 5] = get_half_light_radius(hypercube[:, 5], binned_mags, inv_cdfs_hlr_fn)
+
+    # sersic
+    hypercube[:, 6] = get_sersic_index(hypercube[:, 6], binned_mags)
+
+    # positions
+    hypercube[:, 7] = generate_positions(hypercube[:, 7], pixel_out)
+    hypercube[:, 8] = generate_positions(hypercube[:, 8], pixel_out)
+
+    return hypercube
+
+
+# replace random galaxies into real cosmos-like galaxies
+def adding_cosmos_catalog_galaxies(
+    lhs_gal,
+    replace_indices,
+    version,
+    scaling="z_score",  # "min_max" "z_score"
+    style_norma="euclidian",  # "euclidian" "mahalanobis"
+):
+    # galaxies we want to replace
+    check_columns = [0, 1, 5, 6]  # e1 e2 hlr sersic
+    catalog_targets = lhs_gal[:, check_columns][replace_indices]
+
+    # galaxies from cosmos catalogs (already filtered)
+    filtered_params = read_csv(DIRS["cosmos"] / "filtered_params.csv")
+    check_columns_cosmos = ["e1", "e2", "hlr", "sersic"]
+    catalog_features = filtered_params[check_columns_cosmos].values
+    catalog_index = filtered_params[["indices", "sample"]].values
+
+    # compute nomalised distance
+    catalog_features_norm, catalog_targets_norm = normalise(
+        catalog_features, catalog_targets, scaling
+    )
+    diff = catalog_targets_norm[:, numpy.newaxis, :] - catalog_features_norm[numpy.newaxis, :, :]
+    matched_idx = distance(catalog_features_norm, diff, style_norma)
+
+    # results and switch
+    matched_features = catalog_features[matched_idx]
+    matched_index = catalog_index[matched_idx]
+    lhs_gal[numpy.ix_(replace_indices, check_columns)] = matched_features
+    lhs_gal[replace_indices, 9:11] = matched_index
+
+    # .npy save if any duplicates
+    duplicates(matched_features, version)
 
     return lhs_gal

@@ -2,17 +2,18 @@ import math
 
 import galsim
 import numpy
-from utils import DIRS
+from utils import DIRS, DTYPE_16, DTYPE_32
+
+# --------------------------------------------------------------------------------------------------
 
 
 def unpack_lhs(arguments):
-    g1, g2, z = arguments[0]
+    g1, g2 = arguments[0]
     lhs = arguments[1]
 
     return {
         "g1": g1,
         "g2": g2,
-        "z": z,
         "int_e1": lhs[:, 0],
         "int_e2": lhs[:, 1],
         "off_x": lhs[:, 2],
@@ -115,6 +116,7 @@ def get_offset(off_x, off_y, x, y):
     y_nominal = image_pos.y + 0.5
     ix_nominal = int(math.floor(x_nominal + 0.5))
     iy_nominal = int(math.floor(y_nominal + 0.5))
+
     dx = (x_nominal - ix_nominal) * (2 * off_x - 1)
     dy = (y_nominal - iy_nominal) * (2 * off_y - 1)
     offset = galsim.PositionD(dx, dy)
@@ -122,34 +124,33 @@ def get_offset(off_x, off_y, x, y):
     return image_pos, ix_nominal, iy_nominal, offset
 
 
-def create_mask_over_flux(pixel_scale, hlr, ny, nx):
+def create_mask_wrt_hlr(pixel_scale, hlr, ny, nx):
     y, x = numpy.mgrid[0:ny, 0:nx]
+
     x_center = (nx - 1) / 2
     y_center = (ny - 1) / 2
+
     r = numpy.sqrt((x - x_center) ** 2 + (y - y_center) ** 2) * pixel_scale
     mask = r <= hlr
+
     return mask
 
 
-def print_flux_binned_redshift(full_image_z_flux, label_stamp, bounds_pixel):
+def apply_bin_indices_area(image, label_stamp, bounds_pixel):
     for y in range(bounds_pixel.ymin, bounds_pixel.ymax + 1):
         for x in range(bounds_pixel.xmin, bounds_pixel.xmax + 1):
             val = label_stamp(x, y)
             if val > 0:
-                full_image_z_flux.setValue(x, y, val)
+                image.setValue(x, y, val)
 
-    return full_image_z_flux
+    return image
 
 
-def create_images(
-    index_args_tuple,
-    shape_noise_add,
-    shape_noise_sub,
-    style_psf,
-    type_cosmos,
-    big_psf,
-    k,
-):
+# --------------------------------------------------------------------------------------------------
+
+
+# create pisco euclid-like image
+def create_images(index_args_tuple, shape_noise_add, shape_noise_sub, style_psf, gal_type, k):
     # get seed for noise and args for galsim
     seed, arguments = index_args_tuple
     seed = int(seed)
@@ -175,20 +176,10 @@ def create_images(
     # intrinsic ellipticities
     int_e1 = params["int_e1"] * cos2t + params["int_e2"] * sin2t
     int_e2 = -params["int_e1"] * sin2t + params["int_e2"] * cos2t
-    avg_int_e1 = numpy.mean(int_e1)
-    avg_int_e2 = numpy.mean(int_e2)
 
     # observed ellipticities
     obs_e1 = int_e1 + params["g1"]
     obs_e2 = int_e2 + params["g2"]
-    avg_obs_e1 = numpy.mean(obs_e1)
-    avg_obs_e2 = numpy.mean(obs_e2)
-
-    # shear components
-    # avg_g1 = numpy.mean(params["g1"])
-    # avg_g2 = numpy.mean(params["g2"])
-    avg_g1 = params["g1"]
-    avg_g2 = params["g2"]
 
     # calculate gal flux
     flux = EXPTIME / GAIN * 10 ** (-(params["mag"] - ZP) / 2.5)
@@ -201,21 +192,25 @@ def create_images(
     # print each object
     NB_OBJET = len(params["x"])
     for i in range(NB_OBJET):
-        # compute Sersic profile with cosmos
         if params["index_cosmos"][i] > 0:
-            CHOICE = int(params["index_cosmos"][i])
+            # compute Sersic profile with cosmos catalog galaxies
+            INDEX = int(params["index_cosmos"][i])
             SAMPLE = str(params["sample_cosmos"][i])
 
             cosmos_cat = galsim.COSMOSCatalog(
                 sample=SAMPLE, dir=DIRS["cosmos"], exclusion_level="none", exptime=EXPTIME
             )
+
             gal = cosmos_cat.makeGalaxy(
-                index=CHOICE,
-                gal_type=type_cosmos,
+                index=INDEX,
+                gal_type=gal_type,
                 noise_pad_size=0,
                 sersic_prec=0.0,
                 gsparams=GSPARAMS,
             )
+
+            # adding our own flux
+            gal = gal.withFlux(flux[i])
 
         else:
             # compute Sersic profile with galsim
@@ -227,15 +222,15 @@ def create_images(
                 trunc=params["hlr"][i] * 4.5,
             )
 
-        # apply ellips
-        gal = gal.shear(e1=int_e1[i], e2=int_e2[i])
+            # apply ellips
+            gal = gal.shear(e1=int_e1[i], e2=int_e2[i])
 
         # rotate galaxy
         gal = gal.rotate(theta=theta_rot)
 
         # apply shear
-        gal = gal.shear(g1=avg_g1, g2=avg_g2)  # simple case
-        # gal = gal.shear(g1=params["g1"][i], g2=params["g2"][i])  # normal case
+        gal = gal.shear(g1=params["g1"], g2=params["g2"])
+        # gal = gal.shear(g1=params["g1"][i], g2=params["g2"][i])
 
         # convolve galaxy with PSF
         final = galsim.Convolve([psf, gal])
@@ -263,10 +258,10 @@ def create_images(
         # # flux-binned redshift image
         # label_stamp = galsim.ImageI(PATCH_SIZE, PATCH_SIZE, scale=PIXEL_SCALE)
         # label_stamp.setCenter(ix_nominal, iy_nominal)
-        # mask = create_mask_over_flux(PIXEL_SCALE, params["hlr"][i], PATCH_SIZE, PATCH_SIZE)
+        # mask = create_mask_wrt_hlr(PIXEL_SCALE, params["hlr"][i], PATCH_SIZE, PATCH_SIZE)
         # label_stamp.array[mask] = bin_indices
         # bounds_pixel = label_stamp.bounds & full_image_z.bounds
-        # full_image_z = print_flux_binned_redshift(full_image_z, label_stamp, bounds_pixel)
+        # full_image_z = apply_bin_indices_area(full_image_z, label_stamp, bounds_pixel)
 
     # gaussian noise image
     F_SKY = PIXEL_SCALE ** (2) * EXPTIME * 10 ** (-(SKY_BKG - ZP) / 2.5)  # e-/pixel
@@ -284,23 +279,20 @@ def create_images(
     else:
         full_image += noise_image
 
-    # psf image
-    if big_psf:
-        full_image_psf = galsim.ImageF(IMG_SIZE, IMG_SIZE)
-    else:
-        full_image_psf = galsim.ImageF(PATCH_SIZE, PATCH_SIZE)
-    full_image_psf.setOrigin(0, 0)
-    full_image_psf = psf.drawImage(image=full_image_psf, scale=PIXEL_SCALE)
-    # full_image_psf.addNoise(noise)
+    # return arguments
+    avg_obs_e1 = numpy.mean(obs_e1)
+    avg_obs_e2 = numpy.mean(obs_e2)
+    avg_int_e1 = numpy.mean(int_e1)
+    avg_int_e2 = numpy.mean(int_e2)
+    avg_g1 = numpy.mean(params["g1"])
+    avg_g2 = numpy.mean(params["g2"])
 
-    # return args
     dict_results = {
-        "image": full_image.array,
-        "image_psf": full_image_psf.array,
-        "avg_g": numpy.array([avg_g1, avg_g2]).astype(numpy.float32),
-        "avg_obs_e": numpy.array([avg_obs_e1, avg_obs_e2]).astype(numpy.float32),
-        "avg_int_e": numpy.array([avg_int_e1, avg_int_e2]).astype(numpy.float32),
-        "keys": numpy.array([seed, hashed_key, k]).astype(numpy.float32),
+        "image": full_image.array.astype(DTYPE_16),
+        "avg_g": numpy.array([avg_g1, avg_g2]).astype(DTYPE_32),
+        "avg_obs_e": numpy.array([avg_obs_e1, avg_obs_e2]).astype(DTYPE_32),
+        "avg_int_e": numpy.array([avg_int_e1, avg_int_e2]).astype(DTYPE_32),
+        "keys": numpy.array([seed, hashed_key, k]).astype(DTYPE_32),
         "gal_params": numpy.stack(
             [
                 int_e1,
@@ -313,7 +305,68 @@ def create_images(
                 params["hlr"],
                 params["sersic"],
             ],
-        ).astype(numpy.float32),
+        ).astype(DTYPE_32),
     }
 
     return hashed_key, dict_results
+
+
+# --------------------------------------------------------------------------------------------------
+
+
+# create pisco psf images
+def create_psf(seed, under_float, noisy_psf, style_psf, big_psf, grid):
+    # constant arguments
+    PIXEL_SCALE, PATCH_SIZE, IMG_SIZE, EXPTIME, GAIN, readoutnoise, SKY_BKG, ZP = get_constants()
+
+    # gaussian noise
+    F_SKY = PIXEL_SCALE ** (2) * EXPTIME * 10 ** (-(SKY_BKG - ZP) / 2.5)  # e-/pixel
+    variance = (numpy.sqrt(readoutnoise**2 + F_SKY) / GAIN) ** 2  # e- -> ADU
+    noise = galsim.GaussianNoise(rng=galsim.BaseDeviate(seed), sigma=math.sqrt(variance))
+
+    # style psf
+    psf = build_psf(style_psf)
+
+    # noise image
+    if noisy_psf:
+        SIZE = PATCH_SIZE if grid or not big_psf else IMG_SIZE
+        noise_image = galsim.ImageF(SIZE, SIZE)
+        noise_image.setOrigin(0, 0)
+        noise_image.addNoise(noise)
+
+    # grid psf image
+    if grid:
+        full_image_psf = galsim.ImageF(IMG_SIZE, IMG_SIZE)
+        full_image_psf.setOrigin(0, 0)
+        patch_image = psf.drawImage(nx=PATCH_SIZE, ny=PATCH_SIZE, scale=PIXEL_SCALE)
+
+        NB_PATCHES = IMG_SIZE // PATCH_SIZE
+        for i in range(NB_PATCHES):
+            for j in range(NB_PATCHES):
+                x_start = i * PATCH_SIZE
+                y_start = j * PATCH_SIZE
+                bounds = galsim.BoundsI(
+                    x_start + 1, x_start + PATCH_SIZE, y_start + 1, y_start + PATCH_SIZE
+                )
+
+                sub_image = full_image_psf[bounds]
+                sub_image.array[:, :] = patch_image.array
+
+                if noisy_psf:
+                    sub_image.array[:, :] += noise_image.array
+
+    # normal psf image
+    else:
+        SIZE = PATCH_SIZE if grid or not big_psf else IMG_SIZE
+
+        # psf
+        full_image_psf = galsim.ImageF(SIZE, SIZE)
+        full_image_psf.setOrigin(0, 0)
+        full_image_psf = psf.drawImage(image=full_image_psf, scale=PIXEL_SCALE)
+
+        if noisy_psf:
+            full_image_psf += noise_image
+
+    # return image & key
+    dtype = DTYPE_16 if under_float else DTYPE_32
+    return seed, {"image_psf": full_image_psf.array.astype(dtype)}
