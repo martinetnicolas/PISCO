@@ -7,13 +7,13 @@ from classes import PiscoEuclidPsf
 from utils import DIR_DATASETS, DIRS, RED, RESET
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "1.0.4"
+VERSION = "1.0.3"
 NB_OF_SAMPLES = 50_000
 STYLE_PSF = "airy"  # airy / euclid
 BIG_PSF = True  # image or patch size psf
 NOISY_PSF = False  # raw or noisy psf
 GRID = False  # grid of psf by patch
-UNDER_FLOAT = False  # DTYPE_32 or DTYPE_16
+UNDER_FLOAT = True  # DTYPE_32 or DTYPE_16
 
 
 # CREATE DB ---------------------------------------------------------------------------------

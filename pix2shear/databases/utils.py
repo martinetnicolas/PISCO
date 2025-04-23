@@ -9,6 +9,8 @@ import galsim
 import numpy
 import tensorflow
 from astropy import io
+from functions_images import GSPARAMS, build_full_image, build_psf, get_constants, get_offset
+from functions_lhs import draw_lhs_gal, project_lhs_gal
 from joblib import Parallel, delayed, parallel_backend
 from pandas import DataFrame, read_csv
 
@@ -174,8 +176,57 @@ def generate_seed():
     return (int(time.time() * 1e6) ^ random.getrandbits(32)) % (2**32 - 1)
 
 
-def render_psf(psf, size, dtype, scale):
+def render_simple_psf(psf, size, dtype, scale):
     img = galsim.ImageF(size, size)
     img.setOrigin(0, 0)
     img = psf.drawImage(image=img, scale=scale)
     return img.array.astype(dtype)
+
+
+def render_simple_image():
+    PIXEL_SCALE, PATCH_SIZE, IMG_SIZE, EXPTIME, GAIN, readoutnoise, SKY_BKG, ZP = get_constants()
+    psf = build_psf("airy")
+
+    NB_OF_GALAXIES = 10_000
+
+    lhs_gal_total = draw_lhs_gal(False, 222, NB_OF_GALAXIES)
+    lhs_gal_total = project_lhs_gal(
+        hypercube=lhs_gal_total, ellips_style="gaussian", pixel_out=False
+    )
+
+    start = 100
+    lhs_gal = lhs_gal_total[start : start + 10]
+
+    full_image = build_full_image(IMG_SIZE, PIXEL_SCALE)
+    noise_image = build_full_image(IMG_SIZE, PIXEL_SCALE)
+
+    flux = EXPTIME / GAIN * 10 ** (-(lhs_gal[:, 4] - ZP) / 2.5)
+
+    for i in range(10):
+        gal = galsim.Sersic(
+            n=lhs_gal[i, 6],
+            half_light_radius=lhs_gal[i, 5],
+            flux=flux[i],
+            gsparams=GSPARAMS,
+            trunc=lhs_gal[i, 5] * 4.5,
+        )
+        gal.shear(e1=lhs_gal[i, 0], e2=lhs_gal[i, 1])
+
+        final = galsim.Convolve([psf, gal])
+        image_pos, ix_nominal, iy_nominal, offset = get_offset(
+            lhs_gal[i, 2], lhs_gal[i, 3], lhs_gal[i, 7], lhs_gal[i, 8]
+        )
+        stamp = galsim.ImageF(PATCH_SIZE, PATCH_SIZE, scale=PIXEL_SCALE)
+        final.drawImage(image=stamp, wcs=full_image.wcs.local(image_pos), offset=offset)
+        stamp.setCenter(ix_nominal, iy_nominal)
+        bounds = stamp.bounds & full_image.bounds
+        full_image[bounds] += stamp[bounds]
+
+    F_SKY = PIXEL_SCALE ** (2) * EXPTIME * 10 ** (-(SKY_BKG - ZP) / 2.5)  # e-/pixel
+    variance = (numpy.sqrt(readoutnoise**2 + F_SKY) / GAIN) ** 2  # e- -> ADU
+    noise = galsim.GaussianNoise(rng=galsim.BaseDeviate(2222), sigma=math.sqrt(variance))
+    noise_image.addNoise(noise)
+    full_image += noise_image
+
+    image = full_image.array
+    print(image.min(), image.max())

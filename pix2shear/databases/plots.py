@@ -690,7 +690,9 @@ def diff_binned_continuous(
     fig, axs = pyplot.subplots(2, 2, figsize=(size_fig), sharey=False)
 
     sc1 = axs[0, 0].scatter(hypercube[:, 0], hypercube[:, 1], s=2, alpha=0.3, c=c1)
+    axs[0, 0].set_title("continuous")
     sc2 = axs[0, 1].scatter(numpy.array(list_mag), numpy.array(list_hlr), s=2, alpha=0.3, c=c2)
+    axs[0, 1].set_title("binned")
     sc3 = axs[1, 0].scatter(hypercube[:, 0], hypercube[:, 2], s=2, alpha=0.3, c=c3)
     sc4 = axs[1, 1].scatter(numpy.array(list_mag), numpy.array(list_ns), s=2, alpha=0.3, c=c4)
     if color:

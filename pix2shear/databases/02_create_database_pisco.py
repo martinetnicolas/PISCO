@@ -7,11 +7,11 @@ from classes import PiscoEuclidImage
 from utils import DIR_DATASETS, DIRS, RED, RESET, extract_keys_fn, print_csv_images_galaxies
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "1.0.4"
-NB_OF_SAMPLES = 25_000
+VERSION = "1.1.1"
+NB_OF_SAMPLES = 50_000
 PERCENTAGE_COSMOS = 0
 GAL_TYPE = "real"  # "real" or "parametric"
-NB_GALAXIES = 1
+NB_GALAXIES = 10
 ELLIPS_STYLE = "gaussian"  # gaussian / uniform probability for ellipticities
 PIXELS_OUT = False  # use a 10 pixels band-free around the image
 SHAPE_NOISE_ADD = False
