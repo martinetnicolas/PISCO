@@ -1,340 +1,86 @@
-import galsim
 import numpy
-from scipy import interpolate
-
-# --------------------------------------------------------------------------------------------------
+from utils import DIRS
 
 
-# continuous lhs style
-def get_magnitude(array, inv_fn):
-    bin_size = 0.5
+def inverse_from_data(data):
+    sorted_data = numpy.sort(data)
+    percentiles = numpy.linspace(0, 1, len(sorted_data), endpoint=True)
 
-    inv_array = inv_fn(array)
-    inv_array += bin_size
+    def inv_fn(u):
+        return numpy.interp(u, percentiles, sorted_data)
 
-    binned_mags = bin_size * numpy.floor(inv_array / bin_size)
-
-    return inv_array, binned_mags
+    return inv_fn
 
 
-# continuous lhs style
-def get_half_light_radius(array, binned_mags, inv_fn):
-    for i, mag in enumerate(binned_mags):
-        ongoing_inv_fn = inv_fn[mag]
+def bins_per_mag(mag, hlr, sersic, mag_bin_edges, bin_centers):
+    n_bins = len(mag_bin_edges) - 1
+    dict_hlr = {}
+    dict_sersic = {}
 
-        lhs_value = float(array[i])
-        array[i] = ongoing_inv_fn(lhs_value)
+    for i in range(n_bins):
+        mask_bin = (mag >= mag_bin_edges[i]) & (mag < mag_bin_edges[i + 1])
+        hlr_bin = hlr[mask_bin]
+        sersic_bin = sersic[mask_bin]
+
+        bin_key = f"{bin_centers[i]:.2f}"
+        if len(hlr_bin) > 0:
+            dict_hlr[bin_key] = hlr_bin
+        if len(sersic_bin) > 0:
+            dict_sersic[bin_key] = sersic_bin
+
+    return dict_hlr, dict_sersic
+
+
+def get_cosmos_values(non_filtered_param):
+    mag = non_filtered_param["mag_auto"]
+
+    sersic = non_filtered_param["sersicfit"][:, 2]
+
+    r = non_filtered_param["sersicfit"][:, 1]
+    q = non_filtered_param["sersicfit"][:, 3]
+    hlr = 0.03 * numpy.sqrt(q) * r
+
+    return mag, sersic, hlr
+
+
+def load_data_for_inverse_functions(style):
+    mag_data = numpy.load(DIRS["cosmos"] / f"{style}_mag.npz")["mag"]
+    inv_cdf_mag = inverse_from_data(mag_data)
+
+    hlr_data = numpy.load(DIRS["cosmos"] / f"{style}_dict_hlr.npz")
+    inv_cdfs_hlr = {float(k): inverse_from_data(hlr_data[k]) for k in hlr_data}
+
+    sersic_data = numpy.load(DIRS["cosmos"] / f"{style}_dict_sersic.npz")
+    inv_cdfs_sersic = {float(k): inverse_from_data(sersic_data[k]) for k in sersic_data}
+
+    return inv_cdf_mag, inv_cdfs_hlr, inv_cdfs_sersic
+
+
+def get_projected_magnitude(array, inv_cdf_mag):
+    return inv_cdf_mag(array)
+
+
+def get_projected(array, which_mag_bin, inv_cdfs_fn):
+    for i, mag_bin in enumerate(which_mag_bin):
+        ongoing_inv_fn = inv_cdfs_fn[mag_bin]
+
+        array[i] = ongoing_inv_fn(array[i])
 
     return array
 
 
-# binned lhs style
-def get_sersic_index(array, binned_mags):
-    for i, mag in enumerate(binned_mags):
-        # get mag related value
-        ns_wrt_mag = CDF_NS_WRT_MAG[CDF_NS_WRT_MAG[:, 0] == mag]
+def compute_centers_and_edges(sample, bin_space):
+    if sample == "23.5":
+        mag_bin_edges = numpy.arange(20, 24, bin_space)
+    else:
+        mag_bin_edges = numpy.arange(20, 25, bin_space)
 
-        # selection wrt to initial lhs
-        lhs_value = float(array[i])
-        choices_ns = ns_wrt_mag[ns_wrt_mag[:, 2] >= lhs_value]
+    bin_centers = (mag_bin_edges[:-1] + mag_bin_edges[1:]) / 2
 
-        # taking the minimum value possible
-        array[i] = numpy.amin(choices_ns[:, 1])
-
-    array = numpy.clip(array, 0.3, 6.2)
-
-    return array
+    return mag_bin_edges, bin_centers
 
 
-# inverse cdfs
-def get_inv_cdfs():
-    # mag
-    magnitudes = CDF_MAG[:, 0]
-    cdf_values = CDF_MAG[:, 1]
-    inv_cdf_mag_fn = interpolate.interp1d(cdf_values, magnitudes, fill_value="extrapolate")
-
-    # hlr
-    inv_cdfs_hlr_fn = {}
-    for mag in magnitudes:
-        case_data = CONT_CDF_HLR_WRT_MAG[CONT_CDF_HLR_WRT_MAG[:, 0] == mag]
-        hlr = case_data[:, 1]
-        cdf = case_data[:, 2]
-
-        # interpol_fn = interpolate.interp1d(cdf, hlr, bounds_error=False, fill_value=numpy.nan)
-        interpol_fn = interpolate.interp1d(cdf, hlr, bounds_error=False)
-        inv_cdfs_hlr_fn[mag] = interpol_fn
-
-    return inv_cdf_mag_fn, inv_cdfs_hlr_fn
-
-
-# binned random style
-def binned_style(number):
-    dmag = 0.5
-    dhlr = 0.1
-    list_mag = []
-    list_ns = []
-    list_hlr = []
-    list_e1 = []
-    list_e2 = []
-    for seed in range(number):
-        # numpy.random.seed(seed)
-        uds_gal = galsim.UniformDeviate(seed)
-
-        magi = numpy.min(CDF_MAG[CDF_MAG[:, 1] >= uds_gal()][:, 0])
-        mag = magi + dmag * uds_gal()
-        list_mag.append(mag)
-
-        PDFhlr_cmagi = CDF_HLR_WRT_MAG[CDF_HLR_WRT_MAG[:, 0] == magi]
-        hlr = numpy.min(PDFhlr_cmagi[PDFhlr_cmagi[:, 2] >= uds_gal()][:, 1]) + dhlr * uds_gal()
-        list_hlr.append(hlr)
-
-        PDFn_cmagi = CDF_NS_WRT_MAG[CDF_NS_WRT_MAG[:, 0] == magi]
-        ns = numpy.min(PDFn_cmagi[PDFn_cmagi[:, 2] >= uds_gal()][:, 1])
-        list_ns.append(ns)
-
-        gds_gal = galsim.GaussianDeviate(seed=seed, mean=0.0, sigma=0.26)
-        list_e1.append(gds_gal())
-        list_e2.append(gds_gal())
-
-    return list_mag, list_hlr, list_ns, list_e1, list_e2
-
-
-# HUBBLE DEEP FIELD STYLE -----------------------------------------------------------------
-CDF_MAG = numpy.array(
-    [
-        [20.5, 0.04508],
-        [21.0, 0.09016],
-        [21.5, 0.14754],
-        [22.0, 0.20902],
-        [22.5, 0.31967],
-        [23.0, 0.43033],
-        [23.5, 0.67213],
-        [24.0, 1.0],
-    ]
-)
-CDF_HLR_WRT_MAG = numpy.array(
-    [
-        [20.5, 0.0, 0.0],
-        [20.5, 0.2, 0.0909],
-        [20.5, 0.3, 0.1818],
-        [20.5, 0.4, 0.4545],
-        [20.5, 0.7, 0.5454],
-        [20.5, 0.9, 0.6363],
-        [20.5, 1.0, 0.8181],
-        [20.5, 1.1, 1.0],
-        [21.0, 0.0, 0.0],
-        [21.0, 0.2, 0.1818],
-        [21.0, 0.3, 0.5454],
-        [21.0, 0.5, 0.6363],
-        [21.0, 0.6, 0.7272],
-        [21.0, 0.8, 1.0],
-        [21.5, 0.0, 0.0],
-        [21.5, 0.1, 0.0714],
-        [21.5, 0.2, 0.3571],
-        [21.5, 0.3, 0.5],
-        [21.5, 0.4, 0.6428],
-        [21.5, 0.5, 0.7857],
-        [21.5, 0.6, 0.9285],
-        [21.5, 0.7, 1.0],
-        [22.0, 0.0, 0.0],
-        [22.0, 0.1, 0.0666],
-        [22.0, 0.2, 0.1333],
-        [22.0, 0.3, 0.4666],
-        [22.0, 0.4, 0.6],
-        [22.0, 0.5, 0.7333],
-        [22.0, 0.6, 0.9333],
-        [22.0, 0.8, 1.0],
-        [22.5, 0.0, 0.0],
-        [22.5, 0.1, 0.0370],
-        [22.5, 0.2, 0.1111],
-        [22.5, 0.3, 0.3703],
-        [22.5, 0.4, 0.7037],
-        [22.5, 0.5, 0.7777],
-        [22.5, 0.6, 0.8148],
-        [22.5, 0.7, 0.9259],
-        [22.5, 0.8, 1.0],
-        [23.0, 0.0, 0.0],
-        [23.0, 0.1, 0.0740],
-        [23.0, 0.2, 0.2962],
-        [23.0, 0.3, 0.4814],
-        [23.0, 0.4, 0.7777],
-        [23.0, 0.5, 0.8888],
-        [23.0, 0.6, 0.9629],
-        [23.0, 0.8, 1.0],
-        [23.5, 0.0, 0.0166],
-        [23.5, 0.1, 0.1833],
-        [23.5, 0.2, 0.45],
-        [23.5, 0.3, 0.7166],
-        [23.5, 0.4, 0.9166],
-        [23.5, 0.5, 1.0],
-        [24.0, 0.0, 0.0],
-        [24.0, 0.1, 0.3125],
-        [24.0, 0.2, 0.6],
-        [24.0, 0.3, 0.8625],
-        [24.0, 0.4, 0.9625],
-        [24.0, 0.5, 1.0],
-    ]
-)
-eps = 1e-8
-CONT_CDF_HLR_WRT_MAG = numpy.array(
-    [
-        [20.5, 0.1, 0.0],
-        [20.5, 0.2, eps],
-        [20.5, 0.3, 0.0909],
-        [20.5, 0.4, 0.1818],
-        [20.5, 0.5, 0.4545],
-        [20.5, 0.6, 0.4545 + eps],
-        [20.5, 0.7, 0.4545 + 2 * eps],
-        [20.5, 0.8, 0.5454],
-        [20.5, 0.9, 0.5454 + eps],
-        [20.5, 1.0, 0.6363],
-        [20.5, 1.1, 0.8181],
-        [20.5, 1.2, 1.0],
-        [21.0, 0.1, 0.0],
-        [21.0, 0.2, eps],
-        [21.0, 0.3, 0.1818],
-        [21.0, 0.4, 0.5454],
-        [21.0, 0.5, 0.5454 + eps],
-        [21.0, 0.6, 0.6363],
-        [21.0, 0.7, 0.7272],
-        [21.0, 0.8, 0.7272 + eps],
-        [21.0, 0.9, 1.0],
-        [21.5, 0.1, 0.0],
-        [21.5, 0.2, 0.0714],
-        [21.5, 0.3, 0.3571],
-        [21.5, 0.4, 0.5],
-        [21.5, 0.5, 0.6428],
-        [21.5, 0.6, 0.7857],
-        [21.5, 0.7, 0.9285],
-        [21.5, 0.8, 1.0],
-        [22.0, 0.1, 0.0],
-        [22.0, 0.2, 0.0666],
-        [22.0, 0.3, 0.1333],
-        [22.0, 0.4, 0.4666],
-        [22.0, 0.5, 0.6],
-        [22.0, 0.6, 0.7333],
-        [22.0, 0.7, 0.9333],
-        [22.0, 0.8, 0.9333 + eps],
-        [22.0, 0.9, 1.0],
-        [22.5, 0.1, 0.0],
-        [22.5, 0.2, 0.0370],
-        [22.5, 0.3, 0.1111],
-        [22.5, 0.4, 0.3703],
-        [22.5, 0.5, 0.7037],
-        [22.5, 0.6, 0.7777],
-        [22.5, 0.7, 0.8148],
-        [22.5, 0.8, 0.9259],
-        [22.5, 0.9, 1.0],
-        [23.0, 0.1, 0.0],
-        [23.0, 0.2, 0.0740],
-        [23.0, 0.3, 0.2962],
-        [23.0, 0.4, 0.4814],
-        [23.0, 0.5, 0.7777],
-        [23.0, 0.6, 0.8888],
-        [23.0, 0.7, 0.9629],
-        [23.0, 0.8, 0.9629 + eps],
-        [23.0, 0.9, 1.0],
-        [23.5, 0.0, 0.0],
-        [23.5, 0.1, 0.0166],
-        [23.5, 0.2, 0.1833],
-        [23.5, 0.3, 0.45],
-        [23.5, 0.4, 0.7166],
-        [23.5, 0.5, 0.9166],
-        [23.5, 0.6, 1.0],
-        [24.0, 0.1, 0.0],
-        [24.0, 0.2, 0.3125],
-        [24.0, 0.3, 0.6],
-        [24.0, 0.4, 0.8625],
-        [24.0, 0.5, 0.9625],
-        [24.0, 0.6, 1.0],
-    ]
-)
-CDF_NS_WRT_MAG = numpy.array(
-    [
-        [20.5, 0.0, 0.0],
-        [20.5, 0.5, 0.2727],
-        [20.5, 0.75, 0.5454],
-        [20.5, 1.0, 0.63636],
-        [20.5, 1.25, 0.7272],
-        [20.5, 1.75, 0.81818],
-        [20.5, 3.0, 1.0],
-        [21.0, 0.0, 0.0],
-        [21.0, 0.75, 0.54545],
-        [21.0, 1.25, 0.63636],
-        [21.0, 1.75, 0.72727],
-        [21.0, 4.0, 0.909090],
-        [21.0, 4.5, 1.0],
-        [21.5, 0.0, 0.0],
-        [21.5, 0.25, 0.14285],
-        [21.5, 0.5, 0.357142],
-        [21.5, 1.0, 0.428571],
-        [21.5, 1.25, 0.57142],
-        [21.5, 2.0, 0.642857],
-        [21.5, 2.25, 0.71428],
-        [21.5, 4.0, 0.785714],
-        [21.5, 4.5, 0.857142],
-        [21.5, 5.0, 0.928571],
-        [21.5, 5.25, 1.0],
-        [22.0, 0.0, 0.0],
-        [22.0, 0.25, 0.13333],
-        [22.0, 0.5, 0.266666],
-        [22.0, 0.75, 0.46666],
-        [22.0, 1.25, 0.53333],
-        [22.0, 1.5, 0.599999],
-        [22.0, 1.75, 0.66666],
-        [22.0, 2.5, 0.799999],
-        [22.0, 3.0, 0.866666],
-        [22.0, 3.75, 0.93333],
-        [22.0, 4.25, 1.0],
-        [22.5, 0.0, 0.0],
-        [22.5, 0.25, 0.11111],
-        [22.5, 0.50, 0.37037],
-        [22.5, 0.750, 0.48140],
-        [22.5, 1.0, 0.740740],
-        [22.5, 1.25, 0.81481],
-        [22.5, 1.75, 0.85185],
-        [22.5, 2.0, 0.888888],
-        [22.5, 2.25, 0.92592],
-        [22.5, 2.75, 0.96296],
-        [22.5, 4.0, 1.0],
-        [23.0, 0.0, 0.0],
-        [23.0, 0.25, 0.22222],
-        [23.0, 0.50, 0.44444],
-        [23.0, 0.75, 0.70370],
-        [23.0, 1.00, 0.88888],
-        [23.0, 1.25, 0.92592],
-        [23.0, 2.00, 0.96296],
-        [23.0, 2.50, 1.0],
-        [23.5, 0.0, 0.0],
-        [23.5, 0.25, 0.1],
-        [23.5, 0.50, 0.28333],
-        [23.5, 0.75, 0.44999],
-        [23.5, 1.00, 0.61666],
-        [23.5, 1.25, 0.76666],
-        [23.5, 1.50, 0.83333],
-        [23.5, 2.25, 0.9],
-        [23.5, 2.50, 0.95],
-        [23.5, 2.75, 0.96666],
-        [23.5, 6.00, 0.98333],
-        [23.5, 6.75, 1.0],
-        [24.0, 0.0, 0.0],
-        [24.0, 0.25, 0.05000],
-        [24.0, 0.50, 0.11250],
-        [24.0, 0.75, 0.26250],
-        [24.0, 1.00, 0.41249],
-        [24.0, 1.25, 0.57499],
-        [24.0, 1.50, 0.66249],
-        [24.0, 1.75, 0.75000],
-        [24.0, 2.00, 0.80000],
-        [24.0, 2.25, 0.83750],
-        [24.0, 2.50, 0.87500],
-        [24.0, 2.75, 0.88749],
-        [24.0, 3.00, 0.92499],
-        [24.0, 3.25, 0.93749],
-        [24.0, 3.50, 0.94999],
-        [24.0, 3.75, 0.96249],
-        [24.0, 5.00, 0.97499],
-        [24.0, 7.50, 0.98749],
-        [24.0, 8.75, 1.0],
-    ]
-)
+def compute_which_bin(mag, mag_bin_edges, bin_centers):
+    bin_indices = numpy.digitize(mag, mag_bin_edges) - 1
+    which_mag_bin = bin_centers[bin_indices]
+    return which_mag_bin

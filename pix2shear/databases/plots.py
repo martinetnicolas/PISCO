@@ -8,115 +8,8 @@ from matplotlib import colors, gridspec, pyplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from panel import Column, Row, bind, depends, widgets
 from plotly import graph_objects, subplots
-from scipy import integrate
 from seaborn import heatmap
 from utils import check_unique
-
-
-def cdf_hlr(inv_cdf_wrt_mag, cdf_wrt_mag, directory, bins=50):
-    cases = numpy.unique(cdf_wrt_mag[:, 0])
-
-    probabilities = numpy.linspace(0, 1, 10000)
-    _, axes = pyplot.subplots(1, 2, figsize=(12, 5))
-
-    for cas in cases:
-        values = inv_cdf_wrt_mag[cas](probabilities)
-        axes[0].hist(values, bins=bins, alpha=0.5, label=f"{cas}", density=True)
-
-    axes[0].set_ylabel("Density")
-    axes[0].set_title("Histograms of Sampled Inverse CDF Values for All Cases")
-    axes[0].legend()
-    axes[0].grid()
-
-    for cas in cases:
-        case_data = cdf_wrt_mag[cdf_wrt_mag[:, 0] == cas]
-        x_values = case_data[:, 1]
-        cdf_values = case_data[:, 2]
-        axes[1].plot(x_values, cdf_values, marker="o", label=f"{cas}")
-
-    axes[1].set_ylabel("Cumulative Probability")
-    axes[1].set_title("CDFs")
-    axes[1].legend()
-    axes[1].grid()
-
-    pyplot.suptitle(directory.stem)
-    pyplot.tight_layout()
-    pyplot.savefig(f"{directory}.pdf", dpi=300)
-
-
-def cdf_inv_cdf_case(plot_case, inv_cdf_wrt_mag, cdf_wrt_mag, directory, deg, bins=50):
-    probabilities = numpy.linspace(0, 1, 10000)
-    pyplot.figure(figsize=(5, 4))
-
-    values = inv_cdf_wrt_mag(probabilities)
-
-    case_data = cdf_wrt_mag[cdf_wrt_mag[:, 0] == plot_case]
-    x_values = case_data[:, 1]
-    cdf_values = case_data[:, 2]
-
-    poly_coeffs_np = numpy.polyfit(x_values, cdf_values, deg=deg)
-    poly_fit_np = numpy.poly1d(poly_coeffs_np)
-    pdf_poly_derivative = numpy.polyder(poly_fit_np)
-    xdata = numpy.linspace(values.min(), values.max(), 100)
-    y_cdf_fit = poly_fit_np(xdata)
-    y_pdf_fit = pdf_poly_derivative(xdata)
-    total_probability, _ = integrate.quad(
-        lambda x: pdf_poly_derivative(x), values.min(), values.max()
-    )
-
-    pyplot.hist(
-        values,
-        bins=bins,
-        alpha=0.2,
-        density=True,
-        color="yellow",
-        label="Histo inv CDF",
-        edgecolor="black",
-    )
-    pyplot.plot(x_values, cdf_values, marker="o", label=f"CDF for Case {plot_case}")
-    pyplot.plot(xdata, y_cdf_fit, marker="x", label=f"CDF fit deg {deg}")
-    pyplot.plot(xdata, y_pdf_fit, marker="x", label=f"PDF {total_probability:.2e}")
-    pyplot.title(f"Case mag = {plot_case}")
-    pyplot.xlabel("Value")
-    pyplot.legend()
-    pyplot.grid()
-
-    pyplot.tight_layout()
-    pyplot.savefig(f"{directory}.pdf", dpi=300)
-
-
-def cdf_mag(inv_cdf, cdf, directory, deg=4, bins=50):
-    probabilities = numpy.linspace(0, 1, 1000)
-    pyplot.figure(figsize=(5, 4))
-
-    values = inv_cdf(probabilities)
-    pyplot.hist(values, bins=bins, alpha=0.7, density=True, color="blue", edgecolor="black")
-    pyplot.xlabel("Value")
-    pyplot.ylabel("Density")
-    pyplot.title("Histogram of Sampled Inverse CDF Values (Case )")
-    pyplot.grid()
-
-    x_values = cdf[:, 0]
-    cdf_values = cdf[:, 1]
-
-    poly_coeffs_np = numpy.polyfit(x_values, cdf_values, deg=deg)
-    poly_fit_np = numpy.poly1d(poly_coeffs_np)
-    pdf_poly_derivative = numpy.polyder(poly_fit_np)
-    xdata = numpy.linspace(values.min(), values.max(), 100)
-    y_cdf_fit = poly_fit_np(xdata)
-    y_pdf_fit = pdf_poly_derivative(xdata)
-    total_probability, _ = integrate.quad(
-        lambda x: pdf_poly_derivative(x), values.min(), values.max()
-    )
-
-    pyplot.plot(x_values, cdf_values, marker="o", color="r", label="CDF")
-    pyplot.plot(xdata, y_cdf_fit, marker="x", ls="-", label=f"CDF fit deg {deg}")
-    pyplot.plot(xdata, y_pdf_fit, marker="x", label=f"PDF {total_probability:.2e}")
-    pyplot.legend()
-    pyplot.grid()
-
-    pyplot.tight_layout()
-    pyplot.savefig(f"{directory}.pdf", dpi=300)
 
 
 def plot_dist(selection, bandwidth, data):
@@ -569,143 +462,6 @@ def images_psf(dir_plots, image_psf):
     fig.savefig(f"{dir_plots}.pdf", dpi=300)
 
 
-def comparaison_3d(feat, target, results, indices, directory, with_all_catalog):
-    target_text = [f"{i + 1}" for i in range(len(target))]
-
-    target = target[indices]
-
-    colors = {
-        ("min_max", "euclidian"): "blue",
-        ("min_max", "mahalanobis"): "green",
-        ("z_score", "euclidian"): "orange",
-        ("z_score", "mahalanobis"): "purple",
-    }
-
-    fig = subplots.make_subplots(
-        rows=1, cols=2, specs=[[{"type": "scene"}, {"type": "xy"}]], column_widths=[0.5, 0.5]
-    )
-
-    if with_all_catalog:
-        fig.add_trace(
-            graph_objects.Scatter3d(
-                x=feat[:, 0],
-                y=feat[:, 1],
-                z=feat[:, 2],
-                mode="markers",
-                marker=dict(size=1, color="lightgray", opacity=0.3),
-                name="feat",
-            ),
-            row=1,
-            col=1,
-        )
-
-    fig.add_trace(
-        graph_objects.Scatter3d(
-            x=target[:, 0],
-            y=target[:, 1],
-            z=target[:, 2],
-            mode="markers+text",
-            marker=dict(size=3, color="red"),
-            text=target_text,
-            name="target",
-        ),
-        row=1,
-        col=1,
-    )
-
-    for (SCALING, NORMA), matched in results.items():
-        fig.add_trace(
-            graph_objects.Scatter3d(
-                x=matched[:, 0][indices],
-                y=matched[:, 1][indices],
-                z=matched[:, 2][indices],
-                mode="markers",
-                marker=dict(size=4, color=colors[(SCALING, NORMA)]),
-                name=f"{SCALING.upper()} + {NORMA.title()}",
-            ),
-            row=1,
-            col=1,
-        )
-
-    if with_all_catalog:
-        fig.add_trace(
-            graph_objects.Scatter(
-                x=feat[:, 2],
-                y=feat[:, 3],
-                mode="markers",
-                marker=dict(size=3, color="lightgray", opacity=0.3),
-                name="feat (2D)",
-            ),
-            row=1,
-            col=2,
-        )
-
-    fig.add_trace(
-        graph_objects.Scatter(
-            x=target[:, 2],
-            y=target[:, 3],
-            mode="markers+text",
-            text=target_text,
-            marker=dict(color="red", size=6),
-            name="Test points",
-        ),
-        row=1,
-        col=2,
-    )
-
-    for (SCALING, NORMA), matched in results.items():
-        fig.add_trace(
-            graph_objects.Scatter(
-                x=matched[:, 2][indices],
-                y=matched[:, 3][indices],
-                mode="markers",
-                marker=dict(size=5, color=colors[(SCALING, NORMA)]),
-                name=f"{SCALING.upper()} + {NORMA.title()} (2D)",
-            ),
-            row=1,
-            col=2,
-        )
-
-    fig.update_xaxes(title_text="hlr", row=1, col=2)
-    fig.update_yaxes(title_text="sersic", row=1, col=2)
-    fig.update_layout(
-        scene=dict(xaxis_title="e1", yaxis_title="e2", zaxis_title="hlr"),
-        width=1600,
-        height=800,
-        showlegend=True,
-    )
-    fig.write_image(directory / "replace_comparaison_3d.pdf", width=1200, height=600)
-    fig.show()
-
-
-def diff_binned_continuous(
-    list_mag, list_hlr, list_ns, list_e1, list_e2, hypercube, directory, color
-):
-    c1 = hypercube[:, 3] if color else "#1f77b4"
-    c2 = numpy.array(list_e1) if color else "#1f77b4"
-    c3 = hypercube[:, 4] if color else "#1f77b4"
-    c4 = numpy.array(list_e2) if color else "#1f77b4"
-
-    size_fig = (12, 10) if color else (8, 8)
-    fig, axs = pyplot.subplots(2, 2, figsize=(size_fig), sharey=False)
-
-    sc1 = axs[0, 0].scatter(hypercube[:, 0], hypercube[:, 1], s=2, alpha=0.3, c=c1)
-    axs[0, 0].set_title("continuous")
-    sc2 = axs[0, 1].scatter(numpy.array(list_mag), numpy.array(list_hlr), s=2, alpha=0.3, c=c2)
-    axs[0, 1].set_title("binned")
-    sc3 = axs[1, 0].scatter(hypercube[:, 0], hypercube[:, 2], s=2, alpha=0.3, c=c3)
-    sc4 = axs[1, 1].scatter(numpy.array(list_mag), numpy.array(list_ns), s=2, alpha=0.3, c=c4)
-    if color:
-        fig.colorbar(sc1, ax=axs[0, 0], orientation="vertical", shrink=1, aspect=20, pad=0.02)
-        fig.colorbar(sc2, ax=axs[0, 1], orientation="vertical", shrink=1, aspect=20, pad=0.02)
-        fig.colorbar(sc3, ax=axs[1, 0], orientation="vertical", shrink=1, aspect=20, pad=0.02)
-        fig.colorbar(sc4, ax=axs[1, 1], orientation="vertical", shrink=1, aspect=20, pad=0.02)
-    else:
-        fig.tight_layout()
-    fig.savefig(directory / "binned_vs_cont.pdf", dpi=300)
-    fig.show()
-
-
 def diff_real_param_cosmos(choice, scale, patch_size, real_gal, param_gal, directory):
     psf = build_psf("airy")
 
@@ -840,3 +596,318 @@ def lhs_visu_single_test(directory, hypercube, alpha, bins=11, s=1):
     ax_right.set_xlabel("Count")
     ax_right.tick_params(axis="y", labelleft=False)
     pyplot.savefig(directory / "lhs_test.pdf", dpi=300)
+
+
+def distrib_cosmos(mag, hlr, sersic, dir, sample, bins):
+    pyplot.figure(figsize=(12, 5))
+    pyplot.title(f"{dir.stem} {mag.shape[0]}")
+    pyplot.subplot(2, 3, 1)
+    pyplot.hist(mag, bins=bins)
+    pyplot.subplot(2, 3, 2)
+    pyplot.hist(hlr, bins=bins)
+    pyplot.subplot(2, 3, 3)
+    pyplot.hist(sersic, bins=bins)
+    pyplot.subplot(2, 3, 4)
+    pyplot.hist(mag, bins=bins)
+    pyplot.yscale("log")
+    pyplot.subplot(2, 3, 5)
+    pyplot.hist(hlr, bins=bins)
+    pyplot.yscale("log")
+    pyplot.subplot(2, 3, 6)
+    pyplot.hist(sersic, bins=bins)
+    pyplot.yscale("log")
+    pyplot.savefig(dir / f"{sample}_total_distributions.pdf", dpi=300)
+
+
+def check_distrib_cosmos(mag, hlr, sersic, dir, sample, bins=9):
+    pyplot.figure(figsize=(12, 4))
+    pyplot.title(f"{dir.stem} {mag.shape[0]}")
+    pyplot.subplot(1, 3, 1)
+    pyplot.hist(mag, bins=bins)
+    pyplot.subplot(1, 3, 2)
+    pyplot.hist(hlr, bins=bins)
+    pyplot.subplot(1, 3, 3)
+    pyplot.hist(sersic, bins=bins)
+    pyplot.savefig(dir / f"{sample}_check_total_distributions.pdf", dpi=300)
+
+
+def diff_binned_continuous(
+    list_mag, list_hlr, list_ns, list_e1, list_e2, hypercube, directory, color
+):
+    c1 = hypercube[:, 3] if color else "#1f77b4"
+    c2 = numpy.array(list_e1) if color else "#1f77b4"
+    c3 = hypercube[:, 4] if color else "#1f77b4"
+    c4 = numpy.array(list_e2) if color else "#1f77b4"
+
+    size_fig = (12, 10) if color else (8, 8)
+    fig, axs = pyplot.subplots(2, 2, figsize=(size_fig), sharey=False)
+
+    sc1 = axs[0, 0].scatter(hypercube[:, 0], hypercube[:, 1], s=2, alpha=0.3, c=c1)
+    axs[0, 0].set_title("continuous")
+    sc2 = axs[0, 1].scatter(numpy.array(list_mag), numpy.array(list_hlr), s=2, alpha=0.3, c=c2)
+    axs[0, 1].set_title("binned")
+    sc3 = axs[1, 0].scatter(hypercube[:, 0], hypercube[:, 2], s=2, alpha=0.3, c=c3)
+    sc4 = axs[1, 1].scatter(numpy.array(list_mag), numpy.array(list_ns), s=2, alpha=0.3, c=c4)
+    if color:
+        fig.colorbar(sc1, ax=axs[0, 0], orientation="vertical", shrink=1, aspect=20, pad=0.02)
+        fig.colorbar(sc2, ax=axs[0, 1], orientation="vertical", shrink=1, aspect=20, pad=0.02)
+        fig.colorbar(sc3, ax=axs[1, 0], orientation="vertical", shrink=1, aspect=20, pad=0.02)
+        fig.colorbar(sc4, ax=axs[1, 1], orientation="vertical", shrink=1, aspect=20, pad=0.02)
+    else:
+        fig.tight_layout()
+    fig.savefig(directory / "binned_vs_cont.pdf", dpi=300)
+    fig.show()
+
+
+def histos_cosmos(sample, mag, hlr, sersic, mag_bin_edges, density, dir, bins):
+    n_bins = len(mag_bin_edges) - 1
+    colors = pyplot.cm.viridis(numpy.linspace(0, 1, n_bins))
+
+    pyplot.figure(figsize=(10, 4))
+    for i, (data, xlabel) in enumerate(zip([hlr, sersic], ["hlr", "sersic"])):
+        pyplot.subplot(1, 2, i + 1)
+        for i in range(n_bins):
+            mask_bin = (mag >= mag_bin_edges[i]) & (mag < mag_bin_edges[i + 1])
+            data_bin = data[mask_bin]
+            if len(data_bin) == 0:
+                continue
+
+            pyplot.hist(
+                data_bin,
+                bins=bins,
+                density=density,
+                histtype="step",
+                linewidth=1.5,
+                color=colors[i],
+                label=f"{mag_bin_edges[i]:.1f}-{mag_bin_edges[i + 1]:.1f}",
+            )
+
+        pyplot.xlabel(xlabel)
+        pyplot.legend(fontsize=7, title="Mag bin", loc="upper right")
+        pyplot.grid(True)
+    pyplot.savefig(dir / f"{sample}_histo_per_mag_density{density}.pdf", dpi=300)
+    pyplot.tight_layout()
+    pyplot.show()
+
+
+def cdfs_cosmos(sample, mag, hlr, sersic, mag_bin_edges, dir):
+    n_bins = len(mag_bin_edges) - 1
+    colors = pyplot.cm.viridis(numpy.linspace(0, 1, n_bins))
+
+    pyplot.figure(figsize=(10, 4))
+
+    for i, (data, xlabel) in enumerate(zip([hlr, sersic], ["hlr", "sersic"])):
+        pyplot.subplot(1, 2, i + 1)
+        for i in range(n_bins):
+            mask_bin = (mag >= mag_bin_edges[i]) & (mag < mag_bin_edges[i + 1])
+            data_bin = data[mask_bin]
+            if len(data_bin) == 0:
+                continue
+
+            sorted_vals = numpy.sort(data_bin)
+            cdf_vals = numpy.linspace(0, 1, len(sorted_vals))
+
+            pyplot.plot(
+                sorted_vals,
+                cdf_vals,
+                color=colors[i],
+                label=f"{mag_bin_edges[i]:.1f}-{mag_bin_edges[i + 1]:.1f}",
+            )
+
+        pyplot.xlabel(xlabel)
+        pyplot.legend(fontsize=7, title="Mag bin")
+        pyplot.grid(True)
+
+    pyplot.savefig(dir / f"{sample}_cfds_per_mag.pdf", dpi=300)
+    pyplot.tight_layout()
+    pyplot.show()
+
+
+def check_lhs_projections(
+    dir,
+    sample,
+    bin_centers,
+    mag_bin_edges,
+    mag,
+    hlr,
+    sersic,
+    inv_cdfs_hlr,
+    inv_cdfs_sersic,
+    nb_pdf,
+    alpha=0.4,
+    bins=18,
+):
+    fig, axs = pyplot.subplots(1, 3, figsize=(15, 5))
+    u = numpy.linspace(0.0, 1, nb_pdf)
+    density = True
+
+    for i in range(bin_centers.shape[0]):
+        mask_mag_bin = (mag >= mag_bin_edges[i]) & (mag < mag_bin_edges[i + 1])
+
+        mag_binned = mag[mask_mag_bin]
+        axs[0].hist(mag_binned, bins=9, label=f"bin {i}")
+
+        hlr_binned = hlr[mask_mag_bin]
+        inv_hlr_fn = inv_cdfs_hlr[bin_centers[i]](u)
+        inv_hlr_fn = inv_cdfs_hlr[bin_centers[i]](u)
+        pdf_hlr = 1.0 / numpy.gradient(inv_hlr_fn, u)
+
+        _, _, rectangles = axs[1].hist(
+            hlr_binned, bins=bins, alpha=alpha, label=f"bin {i}", density=density
+        )
+        axs[1].plot(inv_hlr_fn, pdf_hlr, alpha=1, color=rectangles[0].get_facecolor(), lw=2)
+
+        sersic_binned = sersic[mask_mag_bin]
+        inv_sersic_fn = inv_cdfs_sersic[bin_centers[i]](u)
+        inv_sersic_fn = inv_cdfs_sersic[bin_centers[i]](u)
+        pdf_sersic = 1.0 / numpy.gradient(inv_sersic_fn, u)
+
+        _, _, rectangles = axs[2].hist(
+            sersic_binned, bins=bins, alpha=alpha, label=f"bin {i}", density=density
+        )
+        axs[2].plot(inv_sersic_fn, pdf_sersic, alpha=1, color=rectangles[0].get_facecolor(), lw=2)
+
+    axs[0].set_title("Mag")
+    axs[1].set_title("HLR + PDF")
+    axs[2].set_title("Sersic + PDF")
+
+    for ax in axs:
+        ax.legend()
+        ax.grid(True)
+
+    fig.tight_layout()
+    fig.savefig(dir / f"{sample}_check_projection_lhs_density{density}.pdf", dpi=300)
+    fig.show()
+
+
+def comparaison_3d(feat, target, results, indices, directory, with_all_catalog):
+    target_text = [f"{i + 1}" for i in range(len(target))]
+
+    target = target[indices]
+
+    colors = {
+        ("min_max", "euclidian"): "blue",
+        ("min_max", "mahalanobis"): "green",
+        ("z_score", "euclidian"): "orange",
+        ("z_score", "mahalanobis"): "purple",
+    }
+    sizes = {
+        ("min_max", "euclidian"): 8,
+        ("min_max", "mahalanobis"): 10,
+        ("z_score", "euclidian"): 12,
+        ("z_score", "mahalanobis"): 14,
+    }
+    symbols = {
+        ("min_max", "euclidian"): "circle",
+        ("min_max", "mahalanobis"): "square",
+        ("z_score", "euclidian"): "diamond",
+        ("z_score", "mahalanobis"): "cross",
+    }
+    opacity = 0.3
+
+    fig = subplots.make_subplots(
+        rows=1, cols=2, specs=[[{"type": "scene"}, {"type": "xy"}]], column_widths=[0.5, 0.5]
+    )
+
+    if with_all_catalog:
+        fig.add_trace(
+            graph_objects.Scatter3d(
+                x=feat[:, 2],
+                y=feat[:, 3],
+                z=feat[:, 4],
+                mode="markers",
+                marker=dict(size=1, color="lightgray", opacity=opacity),
+                name="feat",
+            ),
+            row=1,
+            col=1,
+        )
+
+    fig.add_trace(
+        graph_objects.Scatter3d(
+            x=target[:, 2],
+            y=target[:, 3],
+            z=target[:, 4],
+            mode="markers+text",
+            marker=dict(size=3, color="red", opacity=opacity),
+            text=target_text,
+            textposition="middle left",
+            name="target",
+        ),
+        row=1,
+        col=1,
+    )
+
+    for (SCALING, NORMA), matched in results.items():
+        fig.add_trace(
+            graph_objects.Scatter3d(
+                x=matched[:, 2][indices],
+                y=matched[:, 3][indices],
+                z=matched[:, 4][indices],
+                text=target_text,
+                mode="markers+text",
+                textposition="middle right",
+                marker=dict(size=4, color=colors[(SCALING, NORMA)], opacity=opacity),
+                name=f"{SCALING.upper()} + {NORMA.title()}",
+            ),
+            row=1,
+            col=1,
+        )
+
+    if with_all_catalog:
+        fig.add_trace(
+            graph_objects.Scatter(
+                x=feat[:, 0],
+                y=feat[:, 1],
+                mode="markers",
+                marker=dict(size=3, color="lightgray", opacity=0.3),
+                name="feat (2D)",
+            ),
+            row=1,
+            col=2,
+        )
+
+    fig.add_trace(
+        graph_objects.Scatter(
+            x=target[:, 0],
+            y=target[:, 1],
+            mode="markers+text",
+            text=target_text,
+            textposition="middle left",
+            marker=dict(color="red", size=6),
+            name="Test points",
+        ),
+        row=1,
+        col=2,
+    )
+
+    for (SCALING, NORMA), matched in results.items():
+        fig.add_trace(
+            graph_objects.Scatter(
+                x=matched[:, 0][indices],
+                y=matched[:, 1][indices],
+                mode="markers+text",
+                text=target_text,
+                textposition="middle right",
+                marker=dict(
+                    size=sizes[(SCALING, NORMA)],
+                    color=colors[(SCALING, NORMA)],
+                    symbol=symbols[(SCALING, NORMA)],
+                    line=dict(width=1, color="black"),
+                ),
+                name=f"{SCALING.upper()} + {NORMA.title()} (2D)",
+            ),
+            row=1,
+            col=2,
+        )
+
+    fig.update_xaxes(title_text="e1", row=1, col=2)
+    fig.update_yaxes(title_text="e2", row=1, col=2)
+    fig.update_layout(
+        scene=dict(xaxis_title="mag", yaxis_title="hlr", zaxis_title="sersic"),
+        width=1600,
+        height=800,
+        showlegend=True,
+    )
+    fig.write_image(directory / "replace_comparaison_3d.pdf", width=1200, height=600)
+    fig.show()

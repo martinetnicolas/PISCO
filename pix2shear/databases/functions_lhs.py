@@ -2,7 +2,13 @@ from collections import defaultdict
 from pathlib import Path
 
 import numpy
-from functions_cdfs import get_half_light_radius, get_inv_cdfs, get_magnitude, get_sersic_index
+from functions_cdfs import (
+    compute_centers_and_edges,
+    compute_which_bin,
+    get_projected,
+    get_projected_magnitude,
+    load_data_for_inverse_functions,
+)
 from pandas import read_csv
 from scipy import stats
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
@@ -165,17 +171,20 @@ def project_lhs_gal(hypercube, ellips_style, pixel_out):
 
     # (column 2 & 3 for offsets)
 
-    # inverse CDFs for physical mg/hlr/sersic
-    inv_cdf_mag_fn, inv_cdfs_hlr_fn = get_inv_cdfs()
+    # inverse CDFs for physical mag/hlr/sersic
+    style = "25.2"
+    inv_cdf_mag, inv_cdfs_hlr, inv_cdfs_sersic = load_data_for_inverse_functions(style)
+    mag_bin_edges, bin_centers = compute_centers_and_edges(style, bin_space=0.5)
 
     # mag
-    hypercube[:, 4], binned_mags = get_magnitude(hypercube[:, 4], inv_cdf_mag_fn)
+    hypercube[:, 4] = get_projected_magnitude(hypercube[:, 4], inv_cdf_mag)
+    which_mag_bin = compute_which_bin(hypercube[:, 4], mag_bin_edges, bin_centers)
 
     # hlr
-    hypercube[:, 5] = get_half_light_radius(hypercube[:, 5], binned_mags, inv_cdfs_hlr_fn)
+    hypercube[:, 5] = get_projected(hypercube[:, 5], which_mag_bin, inv_cdfs_hlr)
 
     # sersic
-    hypercube[:, 6] = get_sersic_index(hypercube[:, 6], binned_mags)
+    hypercube[:, 6] = get_projected(hypercube[:, 6], which_mag_bin, inv_cdfs_sersic)
 
     # positions
     hypercube[:, 7] = generate_positions(hypercube[:, 7], pixel_out)
@@ -193,12 +202,12 @@ def adding_cosmos_catalog_galaxies(
     style_norma="euclidian",  # "euclidian" "mahalanobis"
 ):
     # galaxies we want to replace
-    check_columns = [0, 1, 5, 6]  # e1 e2 hlr sersic
+    check_columns = [0, 1, 4, 5, 6]  # e1 e2 mag hlr sersic
     catalog_targets = lhs_gal[:, check_columns][replace_indices]
 
     # galaxies from cosmos catalogs (already filtered)
     filtered_params = read_csv(DIRS["cosmos"] / "filtered_params.csv")
-    check_columns_cosmos = ["e1", "e2", "hlr", "sersic"]
+    check_columns_cosmos = ["e1", "e2", "mag", "hlr", "sersic"]
     catalog_features = filtered_params[check_columns_cosmos].values
     catalog_index = filtered_params[["indices", "sample"]].values
 

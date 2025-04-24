@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J 02_create_database_pisco
+#SBATCH -J 03_create_database_pisco
 
 #SBATCH -p batch
 #SBATCH -N 1 
@@ -17,6 +17,6 @@ micromamba activate PISCO
 ERROR_FILE="/net/GECO/pisco/PIX2SHEAR/DATASETS/EO_PISCO_create_database_tfds.log"
 echo "START COMPUTING DATABASE" >> $ERROR_FILE 2>&1
 
-python 02_create_database_pisco.py >> $ERROR_FILE 2>&1
+python 03_create_database_pisco.py >> $ERROR_FILE 2>&1
 
 chmod 770 $ERROR_FILE

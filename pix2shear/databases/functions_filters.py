@@ -1,7 +1,6 @@
 import galsim
 import numpy
 from astropy import coordinates, table, units
-from pandas import read_csv
 from utils import DIRS
 
 
@@ -103,20 +102,12 @@ def filter_noise(sample, non_filtered_param, max_var, max_mean):
 
 
 # filter to match pisco work
-def filter_pisco(non_filtered_param, mag_mask, sersic_mask, eps):
+def filter_pisco(non_filtered_param):
     sersic_cosmos = non_filtered_param["sersicfit"][:, 2]
-    mask_pisco = (sersic_cosmos >= 0.3) & (sersic_cosmos <= 6.2)
+    mask_pisco = (sersic_cosmos >= 0.3) & (sersic_cosmos < 6.0)
 
-    if sersic_mask:
-        possible_sersic = read_csv(DIRS["cosmos"] / "possible_sersic.csv")
-        possible_sersic = numpy.array(possible_sersic).squeeze()
-        diff = numpy.abs(sersic_cosmos[:, None] - possible_sersic[None, :])
-        mask_possible = numpy.any(diff < eps, axis=1)
-        mask_pisco &= mask_possible
-
-    if mag_mask:
-        mag = non_filtered_param["mag_auto"]
-        mask_pisco &= (mag >= 20.5) & (mag <= 24.5)
+    mag = non_filtered_param["mag_auto"]
+    mask_pisco &= (mag >= 20.0) & (mag <= 24.5)
 
     r = non_filtered_param["sersicfit"][:, 1]
     q = non_filtered_param["sersicfit"][:, 3]
@@ -124,7 +115,7 @@ def filter_pisco(non_filtered_param, mag_mask, sersic_mask, eps):
     theta = non_filtered_param["sersicfit"][:, 7]
 
     hlr = 0.03 * numpy.sqrt(q) * r
-    mask_pisco &= (hlr >= 0.05) & (hlr <= 1.2)
+    mask_pisco &= (hlr >= 0.05) & (hlr <= 1.5)
     non_filtered_param = add_entry(non_filtered_param, array=hlr, new_entry="hlr_pisco")
 
     max_e = 0.7
