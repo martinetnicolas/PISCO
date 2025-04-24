@@ -1,5 +1,6 @@
 import numpy
-from utils import DIRS
+from scipy import interpolate
+from utils import CDF_MAG, CDF_NS_WRT_MAG, CONT_CDF_HLR_WRT_MAG, DIRS
 
 
 def inverse_from_data(data):
@@ -84,3 +85,46 @@ def compute_which_bin(mag, mag_bin_edges, bin_centers):
     bin_indices = numpy.digitize(mag, mag_bin_edges) - 1
     which_mag_bin = bin_centers[bin_indices]
     return which_mag_bin
+
+
+def old_get_inv_mags():
+    bin_size = 0.5
+    magnitudes = CDF_MAG[:, 0] + bin_size
+    cdf_values = CDF_MAG[:, 1]
+
+    inv_cdf_mag_fn = interpolate.interp1d(cdf_values, magnitudes, fill_value="extrapolate")
+
+    return inv_cdf_mag_fn
+
+
+def old_compute_which_edge_bin(array):
+    bin_size = 0.5
+    edge_bin_mags = bin_size * numpy.floor(array / bin_size)
+    return edge_bin_mags
+
+
+def old_get_sersic_index(array, edge_bin_mags):
+    for i, mag in enumerate(edge_bin_mags):
+        ns_wrt_mag = CDF_NS_WRT_MAG[CDF_NS_WRT_MAG[:, 0] == mag]
+
+        lhs_value = float(array[i])
+        choices_ns = ns_wrt_mag[ns_wrt_mag[:, 2] >= lhs_value]
+
+        array[i] = numpy.amin(choices_ns[:, 1])
+
+    array = numpy.clip(array, 0.3, 6.2)
+
+    return array
+
+
+def old_get_inv_hlr(edge_bin_mags, which_mag_bin):
+    inv_cdfs_hlr_fn = {}
+    for i, mag in enumerate(edge_bin_mags):
+        case_data = CONT_CDF_HLR_WRT_MAG[CONT_CDF_HLR_WRT_MAG[:, 0] == mag]
+        hlr = case_data[:, 1]
+        cdf = case_data[:, 2]
+
+        interpol_fn = interpolate.interp1d(cdf, hlr, bounds_error=False)
+        inv_cdfs_hlr_fn[which_mag_bin[i]] = interpol_fn
+
+    return inv_cdfs_hlr_fn

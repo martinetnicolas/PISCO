@@ -620,43 +620,20 @@ def distrib_cosmos(mag, hlr, sersic, dir, sample, bins):
 
 
 def check_distrib_cosmos(mag, hlr, sersic, dir, sample, bins=9):
+    data = [mag, hlr, sersic]
+    titles = ["Magnitude", "Half-light Radius", "Sersic Index"]
+
     pyplot.figure(figsize=(12, 4))
-    pyplot.title(f"{dir.stem} {mag.shape[0]}")
-    pyplot.subplot(1, 3, 1)
-    pyplot.hist(mag, bins=bins)
-    pyplot.subplot(1, 3, 2)
-    pyplot.hist(hlr, bins=bins)
-    pyplot.subplot(1, 3, 3)
-    pyplot.hist(sersic, bins=bins)
+    pyplot.suptitle(f"{dir.stem} {mag.shape[0]}")
+
+    for i, (d, title) in enumerate(zip(data, titles), 1):
+        pyplot.subplot(1, 3, i)
+        pyplot.hist(d, bins=bins)
+        pyplot.title(title)
+
+    pyplot.tight_layout(rect=[0, 0, 1, 0.95])
     pyplot.savefig(dir / f"{sample}_check_total_distributions.pdf", dpi=300)
-
-
-def diff_binned_continuous(
-    list_mag, list_hlr, list_ns, list_e1, list_e2, hypercube, directory, color
-):
-    c1 = hypercube[:, 3] if color else "#1f77b4"
-    c2 = numpy.array(list_e1) if color else "#1f77b4"
-    c3 = hypercube[:, 4] if color else "#1f77b4"
-    c4 = numpy.array(list_e2) if color else "#1f77b4"
-
-    size_fig = (12, 10) if color else (8, 8)
-    fig, axs = pyplot.subplots(2, 2, figsize=(size_fig), sharey=False)
-
-    sc1 = axs[0, 0].scatter(hypercube[:, 0], hypercube[:, 1], s=2, alpha=0.3, c=c1)
-    axs[0, 0].set_title("continuous")
-    sc2 = axs[0, 1].scatter(numpy.array(list_mag), numpy.array(list_hlr), s=2, alpha=0.3, c=c2)
-    axs[0, 1].set_title("binned")
-    sc3 = axs[1, 0].scatter(hypercube[:, 0], hypercube[:, 2], s=2, alpha=0.3, c=c3)
-    sc4 = axs[1, 1].scatter(numpy.array(list_mag), numpy.array(list_ns), s=2, alpha=0.3, c=c4)
-    if color:
-        fig.colorbar(sc1, ax=axs[0, 0], orientation="vertical", shrink=1, aspect=20, pad=0.02)
-        fig.colorbar(sc2, ax=axs[0, 1], orientation="vertical", shrink=1, aspect=20, pad=0.02)
-        fig.colorbar(sc3, ax=axs[1, 0], orientation="vertical", shrink=1, aspect=20, pad=0.02)
-        fig.colorbar(sc4, ax=axs[1, 1], orientation="vertical", shrink=1, aspect=20, pad=0.02)
-    else:
-        fig.tight_layout()
-    fig.savefig(directory / "binned_vs_cont.pdf", dpi=300)
-    fig.show()
+    pyplot.show()
 
 
 def histos_cosmos(sample, mag, hlr, sersic, mag_bin_edges, density, dir, bins):
@@ -721,63 +698,6 @@ def cdfs_cosmos(sample, mag, hlr, sersic, mag_bin_edges, dir):
     pyplot.savefig(dir / f"{sample}_cfds_per_mag.pdf", dpi=300)
     pyplot.tight_layout()
     pyplot.show()
-
-
-def check_lhs_projections(
-    dir,
-    sample,
-    bin_centers,
-    mag_bin_edges,
-    mag,
-    hlr,
-    sersic,
-    inv_cdfs_hlr,
-    inv_cdfs_sersic,
-    nb_pdf,
-    alpha=0.4,
-    bins=18,
-):
-    fig, axs = pyplot.subplots(1, 3, figsize=(15, 5))
-    u = numpy.linspace(0.0, 1, nb_pdf)
-    density = True
-
-    for i in range(bin_centers.shape[0]):
-        mask_mag_bin = (mag >= mag_bin_edges[i]) & (mag < mag_bin_edges[i + 1])
-
-        mag_binned = mag[mask_mag_bin]
-        axs[0].hist(mag_binned, bins=9, label=f"bin {i}")
-
-        hlr_binned = hlr[mask_mag_bin]
-        inv_hlr_fn = inv_cdfs_hlr[bin_centers[i]](u)
-        inv_hlr_fn = inv_cdfs_hlr[bin_centers[i]](u)
-        pdf_hlr = 1.0 / numpy.gradient(inv_hlr_fn, u)
-
-        _, _, rectangles = axs[1].hist(
-            hlr_binned, bins=bins, alpha=alpha, label=f"bin {i}", density=density
-        )
-        axs[1].plot(inv_hlr_fn, pdf_hlr, alpha=1, color=rectangles[0].get_facecolor(), lw=2)
-
-        sersic_binned = sersic[mask_mag_bin]
-        inv_sersic_fn = inv_cdfs_sersic[bin_centers[i]](u)
-        inv_sersic_fn = inv_cdfs_sersic[bin_centers[i]](u)
-        pdf_sersic = 1.0 / numpy.gradient(inv_sersic_fn, u)
-
-        _, _, rectangles = axs[2].hist(
-            sersic_binned, bins=bins, alpha=alpha, label=f"bin {i}", density=density
-        )
-        axs[2].plot(inv_sersic_fn, pdf_sersic, alpha=1, color=rectangles[0].get_facecolor(), lw=2)
-
-    axs[0].set_title("Mag")
-    axs[1].set_title("HLR + PDF")
-    axs[2].set_title("Sersic + PDF")
-
-    for ax in axs:
-        ax.legend()
-        ax.grid(True)
-
-    fig.tight_layout()
-    fig.savefig(dir / f"{sample}_check_projection_lhs_density{density}.pdf", dpi=300)
-    fig.show()
 
 
 def comparaison_3d(feat, target, results, indices, directory, with_all_catalog):
@@ -910,4 +830,99 @@ def comparaison_3d(feat, target, results, indices, directory, with_all_catalog):
         showlegend=True,
     )
     fig.write_image(directory / "replace_comparaison_3d.pdf", width=1200, height=600)
+    fig.show()
+
+
+def diff_binned_continuous(
+    list_mag, list_hlr, list_ns, list_e1, list_e2, hypercube, directory, color
+):
+    c1 = hypercube[:, 3] if color else "#1f77b4"
+    c2 = numpy.array(list_e1) if color else "#1f77b4"
+    c3 = hypercube[:, 4] if color else "#1f77b4"
+    c4 = numpy.array(list_e2) if color else "#1f77b4"
+
+    size_fig = (12, 10) if color else (8, 8)
+    fig, axs = pyplot.subplots(2, 2, figsize=(size_fig), sharey=False)
+
+    sc1 = axs[0, 0].scatter(hypercube[:, 0], hypercube[:, 1], s=2, alpha=0.3, c=c1)
+    sc2 = axs[0, 1].scatter(numpy.array(list_mag), numpy.array(list_hlr), s=2, alpha=0.3, c=c2)
+    sc3 = axs[1, 0].scatter(hypercube[:, 0], hypercube[:, 2], s=2, alpha=0.3, c=c3)
+    sc4 = axs[1, 1].scatter(numpy.array(list_mag), numpy.array(list_ns), s=2, alpha=0.3, c=c4)
+    if color:
+        fig.colorbar(sc1, ax=axs[0, 0], orientation="vertical", shrink=1, aspect=20, pad=0.02)
+        fig.colorbar(sc2, ax=axs[0, 1], orientation="vertical", shrink=1, aspect=20, pad=0.02)
+        fig.colorbar(sc3, ax=axs[1, 0], orientation="vertical", shrink=1, aspect=20, pad=0.02)
+        fig.colorbar(sc4, ax=axs[1, 1], orientation="vertical", shrink=1, aspect=20, pad=0.02)
+    else:
+        fig.tight_layout()
+
+    axs[0, 0].set_ylim(0.05, 1.4)
+    axs[0, 1].set_ylim(0.05, 1.4)
+    axs[1, 0].set_ylim(0.3, 6)
+    axs[1, 1].set_ylim(0.3, 6)
+
+    fig.savefig(directory / "binned_vs_cont.pdf", dpi=300)
+    fig.show()
+
+
+def check_lhs_projections(
+    dir,
+    sample,
+    bin_centers,
+    mag_bin_edges,
+    mag,
+    hlr,
+    sersic,
+    inv_cdfs_hlr,
+    inv_cdfs_sersic,
+    nb_pdf,
+    sersic_continue,
+    alpha=0.4,
+    bins=18,
+):
+    fig, axs = pyplot.subplots(1, 3, figsize=(15, 5))
+    u = numpy.linspace(0.0, 1, nb_pdf)
+    density = True
+
+    for i in range(bin_centers.shape[0]):
+        mask_mag_bin = (mag >= mag_bin_edges[i]) & (mag < mag_bin_edges[i + 1])
+
+        mag_binned = mag[mask_mag_bin]
+        axs[0].hist(mag_binned, bins=9, label=f"bin {i}")
+
+        hlr_binned = hlr[mask_mag_bin]
+        inv_hlr_fn = inv_cdfs_hlr[bin_centers[i]](u)
+        inv_hlr_fn = inv_cdfs_hlr[bin_centers[i]](u)
+        pdf_hlr = 1.0 / numpy.gradient(inv_hlr_fn, u)
+
+        _, _, rectangles = axs[1].hist(
+            hlr_binned, bins=bins, alpha=alpha, label=f"bin {i}", density=density
+        )
+        axs[1].plot(inv_hlr_fn, pdf_hlr, alpha=1, color=rectangles[0].get_facecolor(), lw=2)
+
+        sersic_binned = sersic[mask_mag_bin]
+        if sersic_continue:
+            inv_sersic_fn = inv_cdfs_sersic[bin_centers[i]](u)
+            inv_sersic_fn = inv_cdfs_sersic[bin_centers[i]](u)
+            pdf_sersic = 1.0 / numpy.gradient(inv_sersic_fn, u)
+
+            _, _, rectangles = axs[2].hist(
+                sersic_binned, bins=bins, alpha=alpha, label=f"bin {i}", density=density
+            )
+            axs[2].plot(
+                inv_sersic_fn, pdf_sersic, alpha=1, color=rectangles[0].get_facecolor(), lw=2
+            )
+        else:
+            axs[2].hist(sersic_binned, bins=20, alpha=alpha, label=f"bin {i}")
+
+    axs[0].set_title("Mag")
+    axs[1].set_title("HLR + PDF")
+    axs[2].set_title("Sersic + PDF")
+
+    for ax in axs:
+        ax.legend()
+        ax.grid(True)
+
+    fig.tight_layout()
+    fig.savefig(dir / f"{sample}_check_projection_lhs_density{density}.pdf", dpi=300)
     fig.show()
