@@ -3,18 +3,20 @@ module load mkl/2024.2
 PIX2SHEAR_DIR=/net/GECO/pisco/PIX2SHEAR
 
 ## USER INPUT
-VERSION=2.0.1_sextractor
-MAX_PARALLEL_JOBS=125       # max cc LAM : 125
+VERSION=2.1.1
+MAX_PARALLEL_JOBS=125       # max cc LAM => 125
 NB_CHECK_IMAGES=20          # number of images segmentation/residual/fitting/background
 ASSOC=1                     # with associated locations (0 or 1)
-CONV=$PIX2SHEAR_DIR/DATASETS/psf/gauss_3.0_7x7.conv
-# PSF_NAME=psf_style-airy_size-41_pixelscale-0.1 
-PSF_NAME=psf_style-airy_size-81_pixelscale-0.06
-PSF=$PIX2SHEAR_DIR/RESULTS_SEXTRACTOR/$PSF_NAME/$PSF_NAME.psf
+CONV=$PIX2SHEAR_DIR/DATASETS/psf_se/gauss_3.0_7x7.conv
+PSF_NAME=psf_style-airy_size-41_pixelscale-0.1
+# PSF_NAME=psf_style-airy_size-81_pixelscale-0.06
 
-## DIRECTORIES
+
+## DIRECTORIES & FILENAMES
+PSF=$PIX2SHEAR_DIR/RESULTS_SEXTRACTOR/$PSF_NAME/$PSF_NAME.psf
+DATATEST_DIR=$PIX2SHEAR_DIR/DATASETS/pisco_euclid_se/$VERSION
 RESULTS_DIR=$PIX2SHEAR_DIR/RESULTS_SEXTRACTOR/$VERSION
-DATATEST_DIR=$PIX2SHEAR_DIR/DATASETS/pisco_euclid/$VERSION
+
 
 ## CHECKS
 if [ -d $RESULTS_DIR ]; then
@@ -33,6 +35,7 @@ if [ ! -d $DATATEST_DIR ]; then
     exit 1
 fi
 
+
 ## CREATE RESULTS DIRECTORIES
 create_dir() {
     mkdir -p $1 && echo $1
@@ -40,6 +43,7 @@ create_dir() {
 IMAGES_DIR=$(create_dir "$RESULTS_DIR/IMAGES")
 CATALOG_DIR=$(create_dir "$RESULTS_DIR/CATALOG")
 LOG_DIR=$(create_dir "$RESULTS_DIR/logs")
+
 
 ## RUN IN PARALLEL
 # NUM_FILES=10
@@ -54,7 +58,7 @@ sbatch --array=${ARRAY_RANGE}%${MAX_PARALLEL_JOBS} \
        --ntasks 1 \
        --cpus-per-task 1 \
        --nodes 1 \
-       --job-name SEX_PARALLEL \
+       --job-name SE_PARALLEL \
        --mail-type=FAIL \
        --mail-user=romain.brunet@lam.fr \
-       run_sextractor_parallel.sh $DATATEST_DIR $IMAGES_DIR $CATALOG_DIR $NB_CHECK_IMAGES $ASSOC $CONV $PSF
+       run_se_parallel.sh $DATATEST_DIR $IMAGES_DIR $CATALOG_DIR $NB_CHECK_IMAGES $ASSOC $CONV $PSF

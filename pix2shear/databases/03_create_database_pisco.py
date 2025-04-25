@@ -7,8 +7,8 @@ from classes import PiscoEuclidImage
 from utils import DIR_DATASETS, DIRS, RED, RESET, extract_keys_fn, print_csv_images_galaxies
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "1.1.1"
-NB_OF_SAMPLES = 5_000
+VERSION = "2.1.1"
+NB_OF_SAMPLES = 5_00
 PERCENTAGE_COSMOS = 0
 GAL_TYPE = "real"  # "real" or "parametric"
 NB_GALAXIES = 10

@@ -33,4 +33,4 @@ if excluded_column in objects_data.columns.names:
 
 # Save final catalog
 catalog.to_csv(CATALOG_DIR / f"{simu_name}.csv", index=False)
-fits_file.unlink()  # delete fits file
+fits_file.unlink()

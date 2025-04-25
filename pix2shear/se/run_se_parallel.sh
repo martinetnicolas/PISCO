@@ -9,15 +9,18 @@ ASSOC=$5
 CONV=$6
 PSF=$7
 
+
 ## SLURM VARIABLES (OVERLOAD)
 export MKL_NUM_THREADS=1
 export MKL_DYNAMIC=FALSE
 export OMP_NUM_THREADS=1
 export OMP_DYNAMIC=FALSE
 
+
 ## ACTIVATE ENV
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate PISCO 
+
 
 ## GET EACH SIMU TO RUN
 index=$SLURM_ARRAY_TASK_ID
@@ -29,11 +32,12 @@ assoc_file=${assoc_list[$index]}
 simu_name=$(basename $fits_file)
 base_simu_name=${simu_name%.fits}
 
+
 ## COMMAND TO RUN
 # Main outputs
 command=(
     sex $fits_file 
-    -c run_sextractor.sex 
+    -c run_se.sex 
     -FILTER Y                                                   # apply filter for detection (Y or N)?
     -FILTER_NAME $CONV                                          # name of the file containing the filter
     -CATALOG_TYPE FITS_LDAC                                     # NONE,ASCII,ASCII_HEAD, ASCII_SKYCAT, ASCII_VOTABLE, FITS_1.0 or FITS_LDAC
@@ -62,9 +66,11 @@ if [[ $index -lt $NB_CHECK_IMAGES ]]; then
     )
 fi
 
+
 ## RUN
 ${command[@]}
 echo "Job running on $HOSTNAME => Finished processing $simu_name"
 
+
 # SAVE OUTPUTS
-python run_sextractor_outputs.py $CATALOG_DIR $base_simu_name
+python run_se_outputs.py $CATALOG_DIR $base_simu_name

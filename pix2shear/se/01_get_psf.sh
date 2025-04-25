@@ -1,15 +1,19 @@
 #!/bin/bash
 module load mkl/2024.2
 
+
 ## USER INPUT
-# PSF_NAME=psf_style-airy_size-41_pixelscale-0.1 
-PSF_NAME=psf_style-airy_size-81_pixelscale-0.06 
-PSF_SAMPLING=0.6
+PSF_NAME=psf_style-airy_size-41_pixelscale-0.1
+PSF_SAMPLING=1
+# PSF_NAME=psf_style-airy_size-81_pixelscale-0.06
+# PSF_SAMPLING=0.6
+
 
 ## DIRECTORIES
-PSF_DIR=/net/GECO/pisco/PIX2SHEAR/DATASETS/psf
-SEXTRACTOR_DIR=/net/GECO/pisco/PIX2SHEAR/RESULTS_SEXTRACTOR
-PSF_DIR_RESULTS=$SEXTRACTOR_DIR/$PSF_NAME
+PSF_DIR=/net/GECO/pisco/PIX2SHEAR/DATASETS/psf_se
+SE_DIR=/net/GECO/pisco/PIX2SHEAR/RESULTS_SEXTRACTOR
+PSF_DIR_RESULTS=$SE_DIR/$PSF_NAME
+
 
 ## CHECKS
 if [ -d $PSF_DIR_RESULTS ]; then
@@ -29,10 +33,10 @@ LOG_FILE=$PSF_DIR_RESULTS/ErrorOutput_psf.log
 if [ -d $LOG_FILE ]; then
     rm -f $LOG_FILE
 fi
-
 echo $PSF_NAME >> $LOG_FILE 2>&1 && echo "" >> $LOG_FILE 2>&1
 
-## SOURCEXTRACTOR RUN ON PSF FILE
+
+## SE RUN ON PSF FILE
 sex $PSF_DIR/$PSF_NAME.fits \
     -c get_psf.sex \
     -CATALOG_TYPE FITS_LDAC \
@@ -42,6 +46,7 @@ sex $PSF_DIR/$PSF_NAME.fits \
     -CHECKIMAGE_TYPE OBJECTS \
     -CHECKIMAGE_NAME $PSF_DIR_RESULTS/$PSF_NAME.obj.fits \
     >> $LOG_FILE 2>&1
+
 
 ## PSFEX RUN TO CREATE .psf FILE
 psfex $PSF_DIR_RESULTS/$PSF_NAME.ldac \

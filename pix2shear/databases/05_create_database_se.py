@@ -6,14 +6,14 @@ from tqdm import tqdm
 from utils import DIR_DATASETS, DIRS, RED, RESET, extract_gal_params, extract_image
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "1.0.1"
+VERSION = "2.1.1"
 SAMPLING = 0.6
-NB_CHUNKS = 8
+NB_CHUNKS = 5
 
-SPLIT = "dataset"
 DIR_VERSION = DIRS["pisco_euclid"] / VERSION
-STYLE_DB = "pisco_euclid"
 DIR_SE = DIRS["pisco_euclid_se"] / VERSION
+SPLIT = "dataset"
+STYLE_DB = "pisco_euclid"
 DIR_SE.mkdir(parents=True, exist_ok=True)
 DIR_SE.chmod(0o1770)
 

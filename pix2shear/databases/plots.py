@@ -833,20 +833,19 @@ def comparaison_3d(feat, target, results, indices, directory, with_all_catalog):
     fig.show()
 
 
-def diff_binned_continuous(
-    list_mag, list_hlr, list_ns, list_e1, list_e2, hypercube, directory, color
-):
-    c1 = hypercube[:, 3] if color else "#1f77b4"
+def diff_binned_continuous(list_mag, list_hlr, list_ns, list_e1, list_e2, hc, directory):
+    color = True
+    c1 = hc[:, 3] if color else "#1f77b4"
     c2 = numpy.array(list_e1) if color else "#1f77b4"
-    c3 = hypercube[:, 4] if color else "#1f77b4"
+    c3 = hc[:, 4] if color else "#1f77b4"
     c4 = numpy.array(list_e2) if color else "#1f77b4"
 
     size_fig = (12, 10) if color else (8, 8)
     fig, axs = pyplot.subplots(2, 2, figsize=(size_fig), sharey=False)
 
-    sc1 = axs[0, 0].scatter(hypercube[:, 0], hypercube[:, 1], s=2, alpha=0.3, c=c1)
+    sc1 = axs[0, 0].scatter(hc[:, 0], hc[:, 1], s=2, alpha=0.3, c=c1)
     sc2 = axs[0, 1].scatter(numpy.array(list_mag), numpy.array(list_hlr), s=2, alpha=0.3, c=c2)
-    sc3 = axs[1, 0].scatter(hypercube[:, 0], hypercube[:, 2], s=2, alpha=0.3, c=c3)
+    sc3 = axs[1, 0].scatter(hc[:, 0], hc[:, 2], s=2, alpha=0.3, c=c3)
     sc4 = axs[1, 1].scatter(numpy.array(list_mag), numpy.array(list_ns), s=2, alpha=0.3, c=c4)
     if color:
         fig.colorbar(sc1, ax=axs[0, 0], orientation="vertical", shrink=1, aspect=20, pad=0.02)
@@ -860,6 +859,15 @@ def diff_binned_continuous(
     axs[0, 1].set_ylim(0.05, 1.4)
     axs[1, 0].set_ylim(0.3, 6)
     axs[1, 1].set_ylim(0.3, 6)
+    axs[0, 0].set_xlabel("Magnitude")
+    axs[0, 1].set_xlabel("Magnitude")
+    axs[1, 0].set_xlabel("Magnitude")
+    axs[1, 1].set_xlabel("Magnitude")
+
+    axs[0, 0].set_ylabel("Half-light Radius")
+    axs[0, 1].set_ylabel("Half-light Radius")
+    axs[1, 0].set_ylabel("Sérsic n")
+    axs[1, 1].set_ylabel("Sérsic n")
 
     fig.savefig(directory / "binned_vs_cont.pdf", dpi=300)
     fig.show()
@@ -925,4 +933,156 @@ def check_lhs_projections(
 
     fig.tight_layout()
     fig.savefig(dir / f"{sample}_check_projection_lhs_density{density}.pdf", dpi=300)
+    fig.show()
+
+
+def check_hlr_sersic_old_new_histo(
+    dir,
+    mag_bin_edges,
+    mag,
+    hlr,
+    sersic,
+    hlr_new,
+    sersic_new,
+    colors,
+    bins=18,
+):
+    fig, axs = pyplot.subplots(1, 2, figsize=(15, 5))
+    density = True
+
+    for i in range(9):
+        mask_mag_bin = (mag >= mag_bin_edges[i]) & (mag < mag_bin_edges[i + 1])
+
+        hlr_binned = hlr[mask_mag_bin]
+        hlr_new_binned = hlr_new[mask_mag_bin]
+        if len(hlr_binned) == 0:
+            continue
+
+        axs[0].hist(
+            hlr_binned,
+            bins=bins,
+            density=density,
+            histtype="step",
+            linewidth=1.5,
+            color=colors[i],
+            label=f"{mag_bin_edges[i]:.1f}-{mag_bin_edges[i + 1]:.1f}",
+        )
+        axs[0].hist(
+            hlr_new_binned,
+            bins=bins,
+            density=density,
+            histtype="step",
+            linestyle=":",
+            linewidth=1.5,
+            color=colors[i],
+            label=f"{mag_bin_edges[i]:.1f}-{mag_bin_edges[i + 1]:.1f}",
+        )
+
+        sersic_binned = sersic[mask_mag_bin]
+        sersic_new_binned = sersic_new[mask_mag_bin]
+
+        axs[1].hist(
+            sersic_binned,
+            bins=bins,
+            density=density,
+            histtype="step",
+            linewidth=1.5,
+            color=colors[i],
+            label=f"{mag_bin_edges[i]:.1f}-{mag_bin_edges[i + 1]:.1f}",
+        )
+        axs[1].hist(
+            sersic_new_binned,
+            bins=bins,
+            density=density,
+            histtype="step",
+            linestyle=":",
+            linewidth=1.5,
+            color=colors[i],
+            label=f"{mag_bin_edges[i]:.1f}-{mag_bin_edges[i + 1]:.1f}",
+        )
+
+    axs[0].set_title("HLR ")
+    axs[1].set_title("Sersic ")
+
+    for ax in axs:
+        ax.legend()
+        ax.grid(True)
+
+    fig.tight_layout()
+    fig.savefig(dir / "check_histo_old_new.pdf", dpi=300)
+    fig.show()
+
+
+def check_single_hlr_sersic_old_new_histo(
+    dir,
+    mag_bin_edges,
+    mag,
+    hlr,
+    sersic,
+    hlr_new,
+    sersic_new,
+    which,
+    bins=18,
+):
+    fig, axs = pyplot.subplots(1, 2, figsize=(15, 5))
+    density = True
+    color = "red"
+
+    mask_mag_bin = (mag >= mag_bin_edges[which]) & (mag < mag_bin_edges[which + 1])
+
+    hlr_binned = hlr[mask_mag_bin]
+    hlr_new_binned = hlr_new[mask_mag_bin]
+    if len(hlr_binned) > 0:
+        axs[0].hist(
+            hlr_binned,
+            bins=bins,
+            density=density,
+            histtype="step",
+            linewidth=1.5,
+            color=color,
+            label=f"{mag_bin_edges[which]:.1f}-{mag_bin_edges[which + 1]:.1f}",
+        )
+        axs[0].hist(
+            hlr_new_binned,
+            bins=bins,
+            density=density,
+            histtype="step",
+            linestyle=":",
+            linewidth=1.5,
+            color=color,
+            label=f"{mag_bin_edges[which]:.1f}-{mag_bin_edges[which + 1]:.1f}",
+        )
+
+        sersic_binned = sersic[mask_mag_bin]
+        sersic_new_binned = sersic_new[mask_mag_bin]
+
+        axs[1].hist(
+            sersic_binned,
+            bins=bins,
+            density=density,
+            histtype="step",
+            linewidth=1.5,
+            color=color,
+            label=f"{mag_bin_edges[which]:.1f}-{mag_bin_edges[which + 1]:.1f}",
+        )
+        axs[1].hist(
+            sersic_new_binned,
+            bins=bins,
+            density=density,
+            histtype="step",
+            linestyle=":",
+            linewidth=1.5,
+            color=color,
+            label=f"{mag_bin_edges[which]:.1f}-{mag_bin_edges[which + 1]:.1f}",
+        )
+
+        axs[0].set_title("HLR ")
+        axs[1].set_title("Sersic ")
+
+    for ax in axs:
+        ax.legend()
+        ax.grid(True)
+
+    fig.tight_layout()
+    fig.savefig(dir / "check_single_histo_old_new.pdf", dpi=300)
     fig.show()

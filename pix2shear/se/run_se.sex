@@ -1,6 +1,6 @@
 #-------------------------------- Catalog ------------------------------------
  
-PARAMETERS_NAME  run_sextractor.param   # name of the file containing catalog contents
+PARAMETERS_NAME  run_se.param   # name of the file containing catalog contents
  
 #------------------------------- Extraction ----------------------------------
  

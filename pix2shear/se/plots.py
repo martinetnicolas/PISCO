@@ -1,29 +1,37 @@
 from pathlib import Path
 
+import numpy
 import tensorflow_datasets as tfds
 from astropy.io import fits
-from jax import numpy
 from matplotlib import pyplot
 from numpy import loadtxt
-from pandas import read_csv
-
-
-def slice_csv(file_path, nb_total):
-    return read_csv(file_path, sep=",", skiprows=0)[:nb_total]
-
-
-def _find_directory(name, init_directory):
-    directory_path = Path(init_directory)
-    matching_folders = list(directory_path.glob(f"**/{name}"))
-    return matching_folders[0]
+from pandas import concat, read_csv
 
 
 def search_folder(name):
     if Path.cwd().parts[1] == "home":
-        search_dir = "/home"
+        search_dir = Path("/home")
     else:
-        search_dir = "/net/GECO/pisco/PIX2SHEAR"
-    return _find_directory(name, search_dir)
+        search_dir = Path("/net/GECO/pisco/PIX2SHEAR")
+    matching_folders = list(search_dir.glob(f"**/{name}"))
+    return matching_folders[0]
+
+
+DIR_DATASETS = search_folder(name="DATASETS")
+DIR_RESULTS = search_folder(name="RESULTS_SEXTRACTOR")
+
+
+DIRS = {
+    "DATASETS": DIR_DATASETS,
+    "RESULTS_SEXTRACTOR": DIR_RESULTS,
+    "psf_se": DIR_DATASETS / "psf_se",
+    "pisco_euclid_se": DIR_DATASETS / "pisco_euclid_se",
+    "pisco_euclid": DIR_DATASETS / "pisco_euclid",
+}
+
+
+def slice_csv(file_path, nb_total):
+    return read_csv(file_path, sep=",", skiprows=0)[:nb_total]
 
 
 def tfds_info(style, version, data_dir, split=True):
@@ -432,23 +440,28 @@ def case_result_param(pred, truth, loss_comp, loss_gal, directory, symbol, err=0
 
 
 def delete_duplicate(df_pred):
-    df_pred = df_pred.filter(df_pred["NUMBER_ASSOC"] == 1)
+    df_pred = df_pred[df_pred["NUMBER_ASSOC"] == 1]
 
-    duplicated_mask = df_pred["assoc1"].is_duplicated()
+    duplicated_mask = df_pred["assoc1"].duplicated()
 
-    df_duplicates = df_pred.filter(duplicated_mask)
+    df_duplicates = df_pred[duplicated_mask]
 
-    distance = (
+    distance = numpy.sqrt(
         (df_duplicates["X_IMAGE"] - df_duplicates["assoc1"]) ** 2
         + (df_duplicates["Y_IMAGE"] - df_duplicates["assoc2"]) ** 2
-    ).sqrt()
-
-    df_duplicates = df_duplicates.with_columns(distance.alias("distance"))
-
-    df_best = (
-        df_duplicates.sort("distance").unique(subset=["assoc1"], keep="first").drop("distance")
     )
 
-    df_pred = df_pred.filter(~duplicated_mask).vstack(df_best).sort("assoc1")
+    df_duplicates = df_duplicates.copy()
+    df_duplicates["distance"] = distance
+
+    df_best = (
+        df_duplicates.sort_values("distance")
+        .drop_duplicates(subset=["assoc1"], keep="first")
+        .drop(columns=["distance"])
+    )
+
+    df_pred = (
+        concat([df_pred[~duplicated_mask], df_best]).sort_values("assoc1").reset_index(drop=True)
+    )
 
     return df_pred
