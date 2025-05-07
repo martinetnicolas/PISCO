@@ -6,7 +6,7 @@ from tqdm import tqdm
 from utils import DIR_DATASETS, DIRS, RED, RESET, extract_gal_params, extract_image
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "2.1.1"
+VERSION = "0.0.0"
 SAMPLING = 0.6
 NB_CHUNKS = 5
 

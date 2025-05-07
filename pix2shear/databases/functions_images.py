@@ -32,11 +32,11 @@ def get_constants():
     pixel_scale = 0.1  # pix size in arcsec (sizes in input catalog in pixels)
     patch_size = 64  # gal patch size in pixels (6.4'')
     image_size = 352  # image size in pixels (0.59')
-    t_exp = 3 * 565  # s
+    t_exp = 4 * 566  # s
     gain = 3.1  # e-/ADU
     readoutnoise = 4.2  # e-
     sky_bkg = 22.35  # mag/arcsec2
-    zp = 24.0  # mag
+    zp = 23.68  # mag
 
     return pixel_scale, patch_size, image_size, t_exp, gain, readoutnoise, sky_bkg, zp
 

@@ -33,7 +33,9 @@ def mask_big_ellipticites(samples):
 def new_sample(number_of_outsider):
     loc = 0
     scale = 0.26
-    seed = numpy.random.randint(0, 2**32 - 1)
+
+    # seed = numpy.random.randint(0, 2**32 - 1)
+    seed = 22  # reproducibility for test parametric / real from cosmos
 
     adding_lhs_samples = draw_lhs(seed, n_samples=number_of_outsider, dim=2)
 
