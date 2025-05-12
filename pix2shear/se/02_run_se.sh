@@ -3,13 +3,13 @@ module load mkl/2024.2
 PIX2SHEAR_DIR=/net/GECO/pisco/PIX2SHEAR
 
 ## USER INPUT
-VERSION=2.1.1
+VERSION=0.0.0
 MAX_PARALLEL_JOBS=125       # max cc LAM => 125
 NB_CHECK_IMAGES=20          # number of images segmentation/residual/fitting/background
 ASSOC=1                     # with associated locations (0 or 1)
 CONV=$PIX2SHEAR_DIR/DATASETS/psf_se/gauss_3.0_7x7.conv
-PSF_NAME=psf_style-airy_size-41_pixelscale-0.1
-# PSF_NAME=psf_style-airy_size-81_pixelscale-0.06
+# PSF_NAME=psf_style-airy_size-41_pixelscale-0.1
+PSF_NAME=psf_style-airy_size-81_pixelscale-0.06
 
 
 ## DIRECTORIES & FILENAMES

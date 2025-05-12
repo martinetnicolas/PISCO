@@ -217,17 +217,14 @@ class BivariateNormal(nn.Module):
         logits = nn.Dense(features=self.nb_cpt, name="logits_g")(x)
         locs = nn.Dense(features=self.nb_cpt * 2, name="mean_g")(x)
         locs = locs.reshape((-1, self.nb_cpt, 2))
-        # Predict the lower triangular Cholesky factor of the covariance matrix
-        # We need 3 values per 2x2 covariance matrix: (scale_xx, scale_yy, and correlation terms)
+
         tril_elements = nn.Dense(features=self.nb_cpt * 3, name="tril_g")(x)
         tril_elements = tril_elements.reshape((-1, self.nb_cpt, 3))
 
-        # Construct the Cholesky factors for each component
-        scale_xx = 1e-5 + nn.softplus(tril_elements[..., 0])  # Ensure positive scale
-        scale_yy = 1e-5 + nn.softplus(tril_elements[..., 1])  # Ensure positive scale
-        correlation = numpy.tanh(tril_elements[..., 2])  # Ensure valid correlation in (-1, 1)
+        scale_xx = 1e-5 + nn.softplus(tril_elements[..., 0])
+        scale_yy = 1e-5 + nn.softplus(tril_elements[..., 1])
+        correlation = numpy.tanh(tril_elements[..., 2])
 
-        # Build the lower triangular Cholesky factor
         cholesky_factors = numpy.stack(
             [
                 numpy.stack([scale_xx, numpy.zeros_like(correlation)], axis=-1),
@@ -257,17 +254,14 @@ class BivariateNormalD(nn.Module):
         logits = nn.Dense(features=self.nb_cpt, name="logits_g")(x)
         locs = nn.Dense(features=self.nb_cpt * 2, name="mean_g")(x)
         locs = locs.reshape((-1, self.nb_cpt, 2))
-        # Predict the lower triangular Cholesky factor of the covariance matrix
-        # We need 3 values per 2x2 covariance matrix: (scale_xx, scale_yy, and correlation terms)
+
         tril_elements = nn.Dense(features=self.nb_cpt * 3, name="tril_g")(x)
         tril_elements = tril_elements.reshape((-1, self.nb_cpt, 3))
 
-        # Construct the Cholesky factors for each component
-        scale_xx = 1e-5 + nn.softplus(tril_elements[..., 0])  # Ensure positive scale
-        scale_yy = 1e-5 + nn.softplus(tril_elements[..., 1])  # Ensure positive scale
-        correlation = numpy.tanh(tril_elements[..., 2])  # Ensure valid correlation in (-1, 1)
+        scale_xx = 1e-5 + nn.softplus(tril_elements[..., 0])
+        scale_yy = 1e-5 + nn.softplus(tril_elements[..., 1])
+        correlation = numpy.tanh(tril_elements[..., 2])
 
-        # Build the lower triangular Cholesky factor
         cholesky_factors = numpy.stack(
             [
                 numpy.stack([scale_xx, numpy.zeros_like(correlation)], axis=-1),

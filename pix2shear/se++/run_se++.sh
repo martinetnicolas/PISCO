@@ -1,15 +1,14 @@
 #!/bin/bash
+PIX2SHEAR_DIR=/net/GECO/pisco/PIX2SHEAR
 
 ## USER INPUT
-VERSION=2.0.2_sextractor
+VERSION=0.0.0
 MAX_PARALLEL_JOBS=125   # max cc LAM : 125
 NB_CHECK_IMAGES=20      # number of images segmentation/residual/fitting/background
 ASSOC=1                 # with associated locations (0 or 1)
 
 ## DIRECTORIES
-PIX2SHEAR_DIR=/net/GECO/pisco/PIX2SHEAR
-PISCO_DATASETS_DIR=$PIX2SHEAR_DIR/DATASETS/pisco_euclid
-DATATEST_DIR=$PISCO_DATASETS_DIR/$VERSION
+DATATEST_DIR=$PIX2SHEAR_DIR/DATASETS/pisco_euclid_se/$VERSION
 RESULTS_DIR=$PIX2SHEAR_DIR/RESULTS_SEXTRACTOR/$VERSION++
 
 ## CHECKS

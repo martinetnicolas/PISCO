@@ -3,10 +3,10 @@ module load mkl/2024.2
 
 
 ## USER INPUT
-PSF_NAME=psf_style-airy_size-41_pixelscale-0.1
-PSF_SAMPLING=1
-# PSF_NAME=psf_style-airy_size-81_pixelscale-0.06
-# PSF_SAMPLING=0.6
+# PSF_NAME=psf_style-airy_size-41_pixelscale-0.1
+# PSF_SAMPLING=1
+PSF_NAME=psf_style-airy_size-81_pixelscale-0.06
+PSF_SAMPLING=0.6
 
 
 ## DIRECTORIES
