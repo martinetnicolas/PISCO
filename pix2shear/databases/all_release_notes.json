@@ -1,6 +1,6 @@
 {
     "release_notes_databases" : {
-        "1.*.*": "TRAIN DB => g round(3) + 10 gal/image + g<=|0.06| + e gauss + seeds 22 + airy",
+        "1.*.*": "TRAIN DB :: g<=|0.06| round(3) + 10 gal/image + e gauss + seeds 22 + airy",
         "1.0.1": "25_000",
         "1.0.2": "25_000 + lhs_pos",
         "1.0.3": "25_000 + pixel_out",
@@ -14,16 +14,14 @@
         "1.1.5": "50_000 + pixel_out",
         "1.1.6": "50_000 + 25% parametric galaxies",
         "1.1.7": "50_000 + 25% real galaxies",
-        "2.*.*": "TEST DB => g round(3) + 10 gal/patch + g<=|0.06| + e gauss + seeds 22 + airy",
-        "2.0.1": "25_000",
-        "2.0.2": "50_000 (25_000 x 2 : with shape noise cancellation with add noise)",
-        "2.0.3": "100_000 (25_000 x 4 : with shape noise cancellation with add noise + sub noise)",
-        "2.0.4": "25_000 + lhs_pos",
-        "2.0.5": "25_000 + pixel out",
-        "2.0.6": "25_000 with 1 gal/image",
-        "2.0.7": "25_000 + 25% parametric galaxies",
-        "2.0.8": "25_000 + 25% real galaxies",
-        "2.1.1": "100_000"
+        "2.*.*": "TEST DB :: g<=|0.06| round(3) + 10 gal/patch + e gauss + seeds 22 + airy + sampling=0.3",
+        "2.0.1": "10_000",
+        "2.0.2": "100_000 (25_000 x 4 : with shape noise cancellation with add noise + sub noise)",
+        "2.0.4": "100_000 + lhs_pos",
+        "2.0.5": "100_000 + pixel out",
+        "2.0.6": "100_000 with 1 gal/image",
+        "2.0.7": "100_000 + 25% parametric galaxies",
+        "2.0.8": "100_000 + 25% real galaxies"
     },
     "release_notes_psf" : {
         "1.*.*": "PSF => airy + float16",

@@ -3,20 +3,18 @@ module load mkl/2024.2
 PIX2SHEAR_DIR=/net/GECO/pisco/PIX2SHEAR
 
 ## USER INPUT
-VERSION=0.0.0
-MAX_PARALLEL_JOBS=125       # max cc LAM => 125
-NB_CHECK_IMAGES=20          # number of images segmentation/residual/fitting/background
-ASSOC=1                     # with associated locations (0 or 1)
+VERSION=0.0.1
+MAX_PARALLEL_JOBS=115       # max cc LAM => 125
+NB_CHECK_IMAGES=100          # number of images segmentation/residual/fitting/background
+ASSOC=0                     # with associated locations (0 or 1)
 CONV=$PIX2SHEAR_DIR/DATASETS/psf_se/gauss_3.0_7x7.conv
-# PSF_NAME=psf_style-airy_size-41_pixelscale-0.1
-PSF_NAME=psf_style-airy_size-81_pixelscale-0.06
-
+PSF_NAME=psf_style-airy_size-41_pixelscale-0.1_sampling-1
+ENTIRE_DATASET=True
 
 ## DIRECTORIES & FILENAMES
 PSF=$PIX2SHEAR_DIR/RESULTS_SEXTRACTOR/$PSF_NAME/$PSF_NAME.psf
 DATATEST_DIR=$PIX2SHEAR_DIR/DATASETS/pisco_euclid_se/$VERSION
 RESULTS_DIR=$PIX2SHEAR_DIR/RESULTS_SEXTRACTOR/$VERSION
-
 
 ## CHECKS
 if [ -d $RESULTS_DIR ]; then
@@ -35,7 +33,6 @@ if [ ! -d $DATATEST_DIR ]; then
     exit 1
 fi
 
-
 ## CREATE RESULTS DIRECTORIES
 create_dir() {
     mkdir -p $1 && echo $1
@@ -44,10 +41,12 @@ IMAGES_DIR=$(create_dir "$RESULTS_DIR/IMAGES")
 CATALOG_DIR=$(create_dir "$RESULTS_DIR/CATALOG")
 LOG_DIR=$(create_dir "$RESULTS_DIR/logs")
 
-
 ## RUN IN PARALLEL
-# NUM_FILES=10
-NUM_FILES=$(find "$DATATEST_DIR" -name "*.fits" | wc -l)
+if [ "$ENTIRE_DATASET" = "True" ]; then
+  NUM_FILES=$(find "$DATATEST_DIR" -name "*.fits" | wc -l)
+else
+  NUM_FILES=5
+fi
 ARRAY_RANGE=0-$((NUM_FILES - 1)) # slurm arrays are zero-indexed
 sbatch --array=${ARRAY_RANGE}%${MAX_PARALLEL_JOBS} \
        --output=$LOG_DIR/Out_%a.log \
@@ -58,6 +57,7 @@ sbatch --array=${ARRAY_RANGE}%${MAX_PARALLEL_JOBS} \
        --ntasks 1 \
        --cpus-per-task 1 \
        --nodes 1 \
+        -p short \
        --job-name SE_PARALLEL \
        --mail-type=FAIL \
        --mail-user=romain.brunet@lam.fr \

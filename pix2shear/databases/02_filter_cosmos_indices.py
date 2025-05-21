@@ -12,7 +12,7 @@ from tqdm import tqdm
 from utils import DIRS, RED, RESET
 
 # USER DATA ----------------------------------------------------------------------------------------
-EXPTIME = 3 * 565
+EXPTIME = 4 * 566
 MAX_VAR = 1.8e-5
 MAX_MEAN = 14.0e-4
 # SAMPLES = ["25.2"]

@@ -11,7 +11,7 @@ warnings.simplefilter("ignore", category=units.UnitsWarning)
 CATALOG_DIR = Path(argv[1])
 IMAGES_DIR = Path(argv[2])
 simu_name = Path(argv[3])
-counter = int(argv[4])
+index = int(argv[4])
 nb_max = int(argv[5])
 assoc = int(argv[6])
 
@@ -20,7 +20,7 @@ fits_file = CATALOG_DIR / simu_name
 catalog = table.Table.read(fits_file, format="fits")
 
 # Save vignet for the first images
-if counter < nb_max:
+if index < nb_max:
     vignet_data = catalog["vignet"]
     hdu = io.fits.PrimaryHDU(vignet_data)
     hdul = io.fits.HDUList([hdu])

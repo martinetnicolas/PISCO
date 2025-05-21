@@ -1,11 +1,12 @@
 #-------------------------------- Catalog ------------------------------------
  
 PARAMETERS_NAME  get_psf.param      # name of the file containing catalog contents
+WEIGHT_TYPE      NONE
 
 #------------------------------- Extraction ----------------------------------
  
 DETECT_TYPE      CCD                # CCD (linear) or PHOTO (with gamma correction)
-DETECT_MINAREA   3                  # min. # of pixels above threshold
+DETECT_MINAREA   5                  # min. # of pixels above threshold
 DETECT_MAXAREA   0                  # max. # of pixels above threshold (0=unlimited)
 THRESH_TYPE      RELATIVE           # ABSOLUTE       # threshold type: RELATIVE (in sigmas)
                                     # or ABSOLUTE (in ADUs)
@@ -17,6 +18,9 @@ DEBLEND_MINCONT  0.01               # Minimum contrast parameter for deblending
  
 MASK_TYPE        CORRECT            # type of detection MASKing: can be one of NONE, BLANK or CORRECT
 
+FILTER           Y              # apply filter for detection (Y or N)?
+FILTER_THRESH
+
 #-------------------------------- Photometry -----------------------------------
 
 PHOT_APERTURES   10                 # MAG_APER aperture diameter(s) in pixels
@@ -25,8 +29,8 @@ PHOT_PETROPARAMS 2.0, 3.5           # MAG_PETRO parameters: <Petrosian_fact>, <m
 PHOT_AUTOAPERS   0.0,0.0            # <estimation>,<measurement> minimum apertures for MAG_AUTO and MAG_PETRO
 PHOT_FLUXFRAC    0.5                # flux fraction[s] used for FLUX_RADIUS
  
-SATUR_LEVEL      50.0               # level (in ADUs) at which arises saturation
-SATUR_KEY        BLA                # keyword for saturation level (in ADUs)
+SATUR_LEVEL      10000.0            # level (in ADUs) at which arises saturation
+SATUR_KEY        SATURATE           # keyword for saturation level (in ADUs)
 
 MAG_ZEROPOINT    30.84              # magnitude zero-point 
 MAG_GAMMA        4.0                # gamma of emulsion (for photographic scans)

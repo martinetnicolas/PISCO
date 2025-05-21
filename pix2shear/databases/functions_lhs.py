@@ -10,7 +10,7 @@ from functions_cdfs import (
     load_data_for_inverse_functions,
 )
 from pandas import read_csv
-from scipy import stats
+from scipy import spatial, stats
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from utils import DIRS, RED, RESET, scale
 
@@ -97,19 +97,6 @@ def normalise(catalog_features, catalog_targets, scaling):
     catalog_targets_norm = scaler.transform(catalog_targets)
 
     return catalog_features_norm, catalog_targets_norm
-
-
-def distance(catalog_features_norm, diff, style_norma):
-    if style_norma == "mahalanobis":  # correlation-based distance
-        cov = numpy.cov(catalog_features_norm, rowvar=False)
-        inv_cov = numpy.linalg.inv(cov)
-        distances = numpy.sqrt(numpy.einsum("...i,ij,...j->...", diff, inv_cov, diff))
-
-    elif style_norma == "euclidian":
-        distances = numpy.linalg.norm(diff, axis=2)
-
-    closest_idx = numpy.argmin(distances, axis=1)
-    return closest_idx
 
 
 # duplicates from cosmos catalogs
@@ -201,24 +188,26 @@ def adding_cosmos_catalog_galaxies(
     replace_indices,
     version,
     scaling="z_score",  # "min_max" "z_score"
-    style_norma="euclidian",  # "euclidian" "mahalanobis"
+    metric="euclidean",  # "euclidean" "mahalanobis" "cityblock"
 ):
     # galaxies we want to replace
     check_columns = [0, 1, 4, 5, 6]  # e1 e2 mag hlr sersic
+    check_columns_cosmos = ["e1", "e2", "mag", "hlr", "sersic"]
+
+    # galaxies from lhs
     catalog_targets = lhs_gal[:, check_columns][replace_indices]
 
     # galaxies from cosmos catalogs (already filtered)
     filtered_params = read_csv(DIRS["cosmos"] / "filtered_params.csv")
-    check_columns_cosmos = ["e1", "e2", "mag", "hlr", "sersic"]
     catalog_features = filtered_params[check_columns_cosmos].values
     catalog_index = filtered_params[["indices", "sample"]].values
 
-    # compute nomalised distance
+    # compute distances
     catalog_features_norm, catalog_targets_norm = normalise(
         catalog_features, catalog_targets, scaling
     )
-    diff = catalog_targets_norm[:, numpy.newaxis, :] - catalog_features_norm[numpy.newaxis, :, :]
-    matched_idx = distance(catalog_features_norm, diff, style_norma)
+    distances = spatial.distance.cdist(catalog_targets_norm, catalog_features_norm, metric=metric)
+    matched_idx = numpy.argmin(distances, axis=1)
 
     # results and switch
     matched_features = catalog_features[matched_idx]

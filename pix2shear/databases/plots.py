@@ -48,11 +48,14 @@ def interactive_pairplot(data, size, directory, width, height):
     return Column(Row(color_selector, color_scale_selector), plot_scatter_matrix)
 
 
-def plot_example(selected_images, directory):
+def plot_example(selected_images, directory, arcsin):
     shape = selected_images.shape[0]
     fig, axes = pyplot.subplots(nrows=1, ncols=shape, figsize=(6 * shape, 10))
     for ax, img in zip(axes, selected_images):
-        ax.imshow(numpy.arcsinh(img), cmap="viridis")
+        if arcsin:
+            ax.imshow(numpy.arcsinh(img), cmap="viridis")
+        else:
+            ax.imshow((img), cmap="viridis")
         ax.axis("off")
     fig.tight_layout()
     fig.savefig(directory / "examples_images.pdf", dpi=300)
@@ -131,6 +134,7 @@ def check_psf(file):
     cax2 = divider.append_axes("right", size="5%", pad=0.05)
     pyplot.colorbar(im2, cax=cax2)
 
+    fig.tight_layout()
     fig.savefig(file.parent / f"{file.stem}.pdf", dpi=300)
     fig.show()
 
@@ -186,47 +190,36 @@ def visu_inputs_ouputs(dbb, loggy=False):
     return Row(Column(sim_index_slider, colormap_selector, clim_slider), frame_inputs, plot)
 
 
-def noise_shape(dir_plots, images, corresponding_csv, apply_arcsinh):
-    number = images.shape[0]
+def noise_shape(images, table_data, dir_plots):
+    indices = table_data.index.to_list()
 
-    indices = corresponding_csv.index.to_list()
-    if number == 2:
-        colLabels = [indices[0], indices[1]]
-    elif number == 4:
-        colLabels = [indices[0], indices[1], indices[2], indices[3]]
+    fig = pyplot.figure(figsize=(20, 10))
+    gs = gridspec.GridSpec(2, 3, width_ratios=[1, 1, 1.2], wspace=0.5)
 
-    fig, axes = pyplot.subplots(2, number, figsize=((number + 1) * 5, 15))
+    for i in range(4):
+        ax = fig.add_subplot(gs[i // 2, i % 2])
+        im = ax.imshow(numpy.arcsinh(images[i]), cmap="viridis")
+        ax.set_title(f"images: {indices[i]}", fontsize=12)
+        fig.colorbar(im, ax=ax, orientation="vertical", fraction=0.046, pad=0.04)
+        ax.axis("off")
 
-    def process_image(image, apply_arcsinh):
-        if apply_arcsinh:
-            return numpy.arcsinh(image)
-        return image
+    ax_table = fig.add_subplot(gs[:, 2])
+    ax_table.axis("off")
 
-    for i in range(number):
-        im = axes[0, i].imshow(process_image(images[i], apply_arcsinh))
-        axes[0, i].set_title(f"images: {indices[i]}", fontsize=12)
-        fig.colorbar(im, ax=axes[0, i], orientation="vertical", fraction=0.046, pad=0.04)
-
-    table_data = corresponding_csv.T
-    table = axes[1, 1].table(
+    table_data = table_data.T
+    table = ax_table.table(
         cellText=table_data.values,
-        colLabels=colLabels,
+        colLabels=table_data.columns.tolist(),
         rowLabels=table_data.index,
         loc="center",
         cellLoc="center",
     )
+
+    table.scale(1, 1.5)
     table.auto_set_font_size(False)
-    table.set_fontsize(15)
-    for _, cell in table.get_celld().items():
-        cell.set_width(0.4)
-        cell.set_height(0.05)
-
-    for ax in axes.flatten():
-        ax.axis("off")
-
-    fig.tight_layout()
-    fig.savefig(dir_plots / "noise_shape_cancel.pdf", dpi=300)
+    table.set_fontsize(10)
     fig.show()
+    fig.savefig(dir_plots / "noise_shape_cancel.pdf", dpi=300)
 
 
 def lhs_visu(directory, all_pairs, alpha, size, bins=11):
@@ -281,7 +274,7 @@ def lhs_visu_single(directory, all_pairs, alpha, bins=11, s=1):
         x_range = (0, 352)
         y_range = (0, 352)
 
-    fig = pyplot.figure(figsize=(9, 6))
+    fig = pyplot.figure(figsize=(9, 7))
     gs = fig.add_gridspec(
         5, 6, wspace=0.2, hspace=0.2, height_ratios=[2, 4, 4, 4, 4], width_ratios=[4, 4, 4, 4, 4, 2]
     )
@@ -334,23 +327,67 @@ def images_redshift(dir_plots, images, images_z_pixel, images_z_flux):
     fig.savefig(dir_plots / "redshift.pdf", dpi=300)
 
 
-def histo_galaxies(hypercube_gal, dir_plots, bins=50):
+def histo_galaxies(hypercube_gal, dir_plots, alpha=0.2, bins=50):
     fontdict = {"fontsize": 10, "fontweight": "bold", "family": "serif", "color": "darkgreen"}
-    alpha = 0.3
 
     fig, axes = pyplot.subplots(2, 3, figsize=(12, 8))
     axes = axes.ravel()
 
-    axes[0].hist(hypercube_gal["int_e1"], bins=bins, alpha=alpha, label="int_e1")
-    axes[0].hist(hypercube_gal["int_e2"], bins=bins, alpha=alpha, label="int_e2")
+    axes[0].hist(
+        hypercube_gal["int_e1"],
+        bins=bins,
+        alpha=alpha,
+        label="int_e1",
+        histtype="step",
+        linewidth=2,
+    )
+    axes[0].hist(
+        hypercube_gal["int_e2"],
+        bins=bins,
+        alpha=alpha,
+        label="int_e2",
+        histtype="step",
+        linestyle="--",
+        linewidth=2,
+    )
     axes[0].legend()
 
-    axes[1].hist(hypercube_gal["obs_e1"], bins=bins, alpha=alpha, label="obs_e1")
-    axes[1].hist(hypercube_gal["obs_e2"], bins=bins, alpha=alpha, label="obs_e2")
+    axes[1].hist(
+        hypercube_gal["obs_e1"],
+        bins=bins,
+        alpha=alpha,
+        label="obs_e1",
+        histtype="step",
+        linewidth=2,
+    )
+    axes[1].hist(
+        hypercube_gal["obs_e2"],
+        bins=bins,
+        alpha=alpha,
+        label="obs_e2",
+        histtype="step",
+        linestyle="--",
+        linewidth=2,
+    )
     axes[1].legend()
 
-    axes[2].hist(hypercube_gal["x"], bins=bins, alpha=alpha, label="x")
-    axes[2].hist(hypercube_gal["y"], bins=bins, alpha=alpha, label="y")
+    axes[2].hist(
+        hypercube_gal["x"],
+        bins=bins,
+        alpha=alpha,
+        label="x",
+        histtype="step",
+        linewidth=2,
+    )
+    axes[2].hist(
+        hypercube_gal["y"],
+        bins=bins,
+        alpha=alpha,
+        label="y",
+        histtype="step",
+        linestyle="--",
+        linewidth=2,
+    )
     axes[2].legend()
 
     axes[3].hist(hypercube_gal["mag"], bins=bins, alpha=alpha, color="orange")
@@ -367,7 +404,7 @@ def histo_galaxies(hypercube_gal, dir_plots, bins=50):
     fig.savefig(dir_plots / "histo_hc_gal.pdf", dpi=300)
 
 
-def histo_images(hypercube_img, dir_plots):
+def histo_images(hypercube_img, dir_plots, bins):
     unique_seeds, _, non_unique_count_seeds = check_unique(hypercube_img, "seeds")
     unique_key, _, non_unique_count_key = check_unique(hypercube_img, "hashed_key")
     unique_k, _, non_unique_count_k = check_unique(hypercube_img, "k")
@@ -375,36 +412,57 @@ def histo_images(hypercube_img, dir_plots):
     fontdict = {"fontsize": 10, "fontweight": "bold", "family": "serif", "color": "darkgreen"}
 
     max_shears = 0.055
-    alpha = 0.2
-    bins = 13
-
+    alpha = 1
     fig, axes = pyplot.subplots(2, 3, figsize=(12, 8))
 
-    axes[0, 0].hist(hypercube_img["avg_g1"], bins=bins, alpha=alpha, label="avg_g1")
-    axes[0, 0].hist(hypercube_img["avg_g2"], bins=bins, alpha=alpha, label="avg_g2")
+    axes[0, 0].hist(
+        hypercube_img["avg_g1"],
+        bins=bins,
+        alpha=alpha,
+        label="avg_g1",
+        histtype="step",
+        linewidth=2,
+    )
+    axes[0, 0].hist(
+        hypercube_img["avg_g2"],
+        bins=bins,
+        alpha=alpha,
+        label="avg_g2",
+        histtype="step",
+        linestyle="--",
+        linewidth=2,
+    )
     axes[0, 0].set_xlim(-max_shears, max_shears)
     axes[0, 0].legend()
 
-    axes[0, 1].hist(hypercube_img["avg_int_e1"], bins=bins, alpha=alpha, label="avg_int_e1")
-    axes[0, 1].hist(hypercube_img["avg_int_e2"], bins=bins, alpha=alpha, label="avg_int_e2")
+    axes[0, 1].hist(
+        hypercube_img["avg_int_e1"], bins=50, alpha=alpha, label="avg_int_e1", histtype="step"
+    )
+    axes[0, 1].hist(
+        hypercube_img["avg_int_e2"], bins=50, alpha=alpha, label="avg_int_e2", histtype="step"
+    )
     axes[0, 1].legend()
 
-    axes[0, 2].hist(hypercube_img["avg_obs_e1"], bins=bins, alpha=alpha, label="avg_obs_e1")
-    axes[0, 2].hist(hypercube_img["avg_obs_e2"], bins=bins, alpha=alpha, label="avg_obs_e2")
+    axes[0, 2].hist(
+        hypercube_img["avg_obs_e1"], bins=50, alpha=alpha, label="avg_obs_e1", histtype="step"
+    )
+    axes[0, 2].hist(
+        hypercube_img["avg_obs_e2"], bins=50, alpha=alpha, label="avg_obs_e2", histtype="step"
+    )
     axes[0, 2].legend()
 
-    axes[1, 0].hist(hypercube_img["seeds"], bins=50, label="seeds")
+    axes[1, 0].hist(hypercube_img["seeds"], bins=100, label="seeds")
     axes[1, 0].set_title(
         f"seeds : {unique_seeds.shape[0]} w. {non_unique_count_seeds} duplicates", fontdict
     )
 
-    axes[1, 1].hist(hypercube_img["hashed_key"], bins=50, label="key")
+    axes[1, 1].hist(hypercube_img["hashed_key"], bins=100, label="key")
     axes[1, 1].set_title(
-        f"key : {unique_key.shape[0]} w. {non_unique_count_key} duplicates", fontdict
+        f"hashed_key : {unique_key.shape[0]} w. {non_unique_count_key} duplicates", fontdict
     )
 
     axes[1, 2].hist(hypercube_img["k"], bins=8, label="k")
-    axes[1, 2].set_title(f"k : {unique_k.shape[0]} w. {non_unique_count_k} duplicates", fontdict)
+    axes[1, 2].set_title(f"snc : {unique_k.shape[0]} w. {non_unique_count_k} duplicates", fontdict)
 
     fig.suptitle(f"{hypercube_img.shape[0]} samples")
     fig.tight_layout()
@@ -706,21 +764,21 @@ def comparaison_3d(feat, target, results, indices, directory, with_all_catalog):
     target = target[indices]
 
     colors = {
-        ("min_max", "euclidian"): "blue",
+        ("min_max", "euclidean"): "blue",
         ("min_max", "mahalanobis"): "green",
-        ("z_score", "euclidian"): "orange",
+        ("z_score", "euclidean"): "orange",
         ("z_score", "mahalanobis"): "purple",
     }
     sizes = {
-        ("min_max", "euclidian"): 8,
+        ("min_max", "euclidean"): 8,
         ("min_max", "mahalanobis"): 10,
-        ("z_score", "euclidian"): 12,
+        ("z_score", "euclidean"): 12,
         ("z_score", "mahalanobis"): 14,
     }
     symbols = {
-        ("min_max", "euclidian"): "circle",
+        ("min_max", "euclidean"): "circle",
         ("min_max", "mahalanobis"): "square",
-        ("z_score", "euclidian"): "diamond",
+        ("z_score", "euclidean"): "diamond",
         ("z_score", "mahalanobis"): "cross",
     }
     opacity = 0.3

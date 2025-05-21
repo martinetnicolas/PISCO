@@ -33,13 +33,13 @@ DIR_DATASETS = search_folder(name="DATASETS")
 DIRS = {
     "cosmos_plots": DIR_DATASETS / "cosmos_plots",
     "cosmos": DIR_DATASETS / "cosmos",
+    "duplicates": DIR_DATASETS / "cosmos" / "duplicates",
     "pisco_euclid": DIR_DATASETS / "pisco_euclid",
     "pisco_euclid_se": DIR_DATASETS / "pisco_euclid_se",
     "pisco_euclid_plots": DIR_DATASETS / "pisco_euclid_plots",
     "psf": DIR_DATASETS / "psf",
     "psf_se": DIR_DATASETS / "psf_se",
     "psf_plots": DIR_DATASETS / "psf_plots",
-    "duplicates": DIR_DATASETS / "duplicates",
     "wip": DIR_DATASETS / "wip",
 }
 
@@ -55,6 +55,15 @@ def _parallel_with_one_arg(func, data):
         return numpy.array(
             Parallel(prefer="threads", verbose=0)(delayed(func)(arg=arg) for arg in data)
         )
+
+
+def write_fits(path, data, sampling):
+    header = io.fits.Header()
+    header["SAMPLING"] = sampling
+    hdu = io.fits.PrimaryHDU(data=data.astype(numpy.float32), header=header)
+    hdulist = io.fits.HDUList([hdu])
+    hdulist.writeto(path, overwrite=True)
+    hdulist.close()
 
 
 def getting_norms(data):
@@ -95,7 +104,7 @@ def get_indices_snc(hypercube_gal_params):
     cols_to_groupby = [
         col
         for col in hypercube_gal_params.columns
-        if col not in ["int_e1", "int_e2", "obs_e1", "obs_e2"]
+        if col not in ["int_e1", "int_e2", "obs_e1", "obs_e2", "image"]
     ]
     duplicates = hypercube_gal_params[
         hypercube_gal_params.duplicated(subset=cols_to_groupby, keep=False)

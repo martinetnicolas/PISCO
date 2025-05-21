@@ -1,4 +1,9 @@
 #!/bin/bash
+## SLURM VARIABLES (OVERLOAD)
+export MKL_NUM_THREADS=1
+export MKL_DYNAMIC=FALSE
+export OMP_NUM_THREADS=1
+export OMP_DYNAMIC=FALSE
 
 ## Arguments
 DATATEST_DIR=$1
@@ -9,29 +14,18 @@ ASSOC=$5
 CONV=$6
 PSF=$7
 
-
-## SLURM VARIABLES (OVERLOAD)
-export MKL_NUM_THREADS=1
-export MKL_DYNAMIC=FALSE
-export OMP_NUM_THREADS=1
-export OMP_DYNAMIC=FALSE
-
-
 ## ACTIVATE ENV
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate PISCO 
 
-
 ## GET EACH SIMU TO RUN
 index=$SLURM_ARRAY_TASK_ID
-file_list=($(ls $DATATEST_DIR/*_simu.fits | sort -V))
-fits_file=${file_list[$index]}
-echo $fits_file
-assoc_list=($(ls $DATATEST_DIR/*_assoc.txt | sort -V))
-assoc_file=${assoc_list[$index]}
+echo $index
+index_file=$(printf '%06d' $index)
+fits_file="${DATATEST_DIR}/${index_file}_simu.fits"
+assoc_file="${DATATEST_DIR}/${index_file}_simu_assoc.txt"
 simu_name=$(basename $fits_file)
-base_simu_name=${simu_name%.fits}
-
+number_simu=${simu_name%.fits}
 
 ## COMMAND TO RUN
 # Main outputs
@@ -41,7 +35,7 @@ command=(
     -FILTER Y                                                   # apply filter for detection (Y or N)?
     -FILTER_NAME $CONV                                          # name of the file containing the filter
     -CATALOG_TYPE FITS_LDAC                                     # NONE,ASCII,ASCII_HEAD, ASCII_SKYCAT, ASCII_VOTABLE, FITS_1.0 or FITS_LDAC
-    -CATALOG_NAME $CATALOG_DIR/$base_simu_name.cat              # name of the output catalog
+    -CATALOG_NAME $CATALOG_DIR/$number_simu.cat                   # name of the output catalog
     -PSF_NAME $PSF                                              # File containing the PSF model
     -VERBOSE_TYPE FULL                                          # can be QUIET, NORMAL or FULL
 )
@@ -66,11 +60,9 @@ if [[ $index -lt $NB_CHECK_IMAGES ]]; then
     )
 fi
 
-
 ## RUN
 ${command[@]}
-echo "Job running on $HOSTNAME => Finished processing $simu_name"
-
+echo "Job running on $HOSTNAME => Finished processing $number_simu"
 
 # SAVE OUTPUTS
-python run_se_outputs.py $CATALOG_DIR $base_simu_name
+python extract_outputs.py $CATALOG_DIR $number_simu $ASSOC

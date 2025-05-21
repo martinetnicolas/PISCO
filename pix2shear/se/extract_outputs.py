@@ -9,10 +9,10 @@ from astropy.io import fits
 
 warnings.simplefilter("ignore", category=units.UnitsWarning)
 
-
 # Read parameters
 CATALOG_DIR = Path(argv[1])
 simu_name = Path(argv[2])
+assoc = argv[3]
 
 # Read sextractor catalog results
 fits_file = CATALOG_DIR / f"{simu_name}.cat"

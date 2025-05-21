@@ -5,7 +5,8 @@ import tensorflow_datasets as tfds
 from astropy.io import fits
 from matplotlib import pyplot
 from numpy import loadtxt
-from pandas import concat, read_csv
+from pandas import read_csv
+from scipy import spatial
 
 
 def search_folder(name):
@@ -47,28 +48,13 @@ def tfds_info(style, version, data_dir, split=True):
 
 
 def ellips_model(e1_err, e2_err, e1, e2):
-    e1_err = e1_err.to_numpy()
-    e2_err = e2_err.to_numpy()
-    e1 = e1.to_numpy()
-    e2 = e2.to_numpy()
-
-    weight_e1 = 1 / numpy.sqrt(e1_err**2 + 0.26**2)
+    weight_e1 = 1 / (e1_err**2 + 0.26**2)
     e1_weighted_mean = numpy.sum(weight_e1 * e1) / numpy.sum(weight_e1)
 
-    weight_e2 = 1 / numpy.sqrt(e2_err**2 + 0.26**2)
+    weight_e2 = 1 / (e2_err**2 + 0.26**2)
     e2_weighted_mean = numpy.sum(weight_e2 * e2) / numpy.sum(weight_e2)
 
-    return float(e1_weighted_mean.mean()), float(e2_weighted_mean.mean())
-
-
-def ellips_se(e, theta):
-    e = e.to_numpy()
-    theta = theta.to_numpy()
-
-    rad = numpy.deg2rad(theta)
-    e1 = e * numpy.cos(2 * rad)
-    e2 = e * numpy.sin(2 * rad)
-    return float(e1.mean()), float(e2.mean())
+    return float(e1_weighted_mean), float(e2_weighted_mean)
 
 
 def ldac(psf_dir, psf_name):
@@ -102,6 +88,19 @@ def gauss_conv(file_path, plots_dir):
     fig.savefig(plots_dir / "gauss_conv.pdf", dpi=300)
     fig.suptitle(title, fontsize=10)
     fig.show()
+
+
+def get_match(df_pred, df_true, radius):
+    tree_preds = spatial.cKDTree(df_pred[["X_IMAGE", "Y_IMAGE"]].values)
+    truth_to_preds = tree_preds.query_ball_point(df_true[["x", "y"]].values, r=radius)
+
+    indices_truth = [i for i, lst in enumerate(truth_to_preds) if len(lst) == 1]
+    indices_pred = [truth_to_preds[i][0] for i in indices_truth]
+
+    filter_truth = df_true.iloc[indices_truth].copy()
+    filter_pred = df_pred.iloc[indices_pred].copy()
+
+    return filter_pred, filter_truth
 
 
 def hdul_object_ldac(objects_data, plots_dir):
@@ -139,13 +138,15 @@ def extra_psf_images(datasets_psf_dir, psf_name, psf_dir, plots_dir, loggy=True)
     psfex = func(
         fits.open(psf_dir / f"{psf_name}.psf")[1].data["PSF_MASK"][0][0].astype(numpy.float32)
     )
-    psf = func(fits.open(datasets_psf_dir / f"{psf_name}.fits")[0].data.astype(numpy.float32))
+    # psf = func(fits.open(datasets_psf_dir / f"{psf_name}.fits")[0].data.astype(numpy.float32))
     objects = func(fits.open(psf_dir / f"{psf_name}.obj.fits")[0].data.astype(numpy.float32))
 
-    titles = ["snapshots", "prototypes", "psf_psfex", "psf", "objects"]
-    images = [snap, proto, psfex, psf, objects]
+    # titles = ["snapshots", "prototypes", "psf_psfex", "psf", "objects"]
+    # images = [snap, proto, psfex, psf, objects]
+    titles = ["snapshots", "prototypes", "psf_psfex", "objects"]
+    images = [snap, proto, psfex, objects]
 
-    fig, axes = pyplot.subplots(1, 5, figsize=(15, 3))
+    fig, axes = pyplot.subplots(1, 4, figsize=(15, 3))
 
     for i, (ax, img, title) in enumerate(zip(axes.flat, images, titles)):
         im = ax.imshow(img, cmap="viridis", origin="lower")
@@ -238,7 +239,8 @@ def image_fitting(dataset_dir, images_dir, choice, plots_dir, transformed=False)
         im = axes[i].imshow(data[key])
         axes[i].set_title(key)
         axes[i].invert_yaxis()
-        axes[i].scatter(assoc[:, 0], assoc[:, 1], color="red", marker="o", s=2, label="assoc")
+        if key == "image":
+            axes[i].scatter(assoc[:, 0], assoc[:, 1], color="red", marker="o", s=2, label="assoc")
         fig.colorbar(im, ax=axes[i], fraction=0.046, pad=0.04)
 
     fig.suptitle(title, fontsize=16)
@@ -247,29 +249,36 @@ def image_fitting(dataset_dir, images_dir, choice, plots_dir, transformed=False)
     fig.savefig(plots_dir / f"image_fitting_{title}_{choice}.pdf", dpi=300)
 
 
-def case_result(pred_e, shears, directory, symbol="gamma"):
-    s = 10
-    alpha = 0.2
+def case_result(pred_e1, pred_e2, shears1, shears2, directory, symbol="gamma"):
+    s = 5
+    alpha = 0.25
     c1, c2 = "C0", "C1"
-    t = numpy.linspace(shears.min(), shears.max())
+    t = numpy.linspace(min(shears1.min(), shears2.min()), max(shears1.max(), shears2.max()))
 
-    diff_pred_g1 = pred_e[:, 0] - shears[:, 0]
-    diff_pred_g2 = pred_e[:, 1] - shears[:, 1]
-    poly_g1 = numpy.polyfit(shears[:, 0], diff_pred_g1, 1)
-    poly_g2 = numpy.polyfit(shears[:, 1], diff_pred_g2, 1)
+    diff_pred_g1 = pred_e1 - shears1
+    diff_pred_g2 = pred_e2 - shears2
+    poly_g1, cov1 = numpy.polyfit(shears1, diff_pred_g1, 1, cov=True)
+    poly_g2, cov2 = numpy.polyfit(shears2, diff_pred_g2, 1, cov=True)
 
-    fig, axes = pyplot.subplots(1, 2, figsize=(12, 5))
+    fig, axes = pyplot.subplots(1, 2, figsize=(12, 5), sharey=True)
     axes = axes.flatten()
 
-    lab_1 = f"m= {poly_g1[0]:.3f}, c={poly_g1[1]:.3f}"
-    axes[0].scatter(shears[:, 0], diff_pred_g1, alpha=alpha, color=c1, marker="x", s=s, label=lab_1)
-    lab_2 = f"m= {poly_g2[0]:.3f}, c={poly_g2[1]:.3f}"
-    axes[0].scatter(shears[:, 1], diff_pred_g2, alpha=alpha, color=c2, marker="o", s=s, label=lab_2)
-    axes[0].plot(t, poly_g1[1] + poly_g1[0] * t, color=c1)
-    axes[0].plot(t, poly_g2[1] + poly_g2[0] * t, color=c2)
+    lab_1 = (
+        f"m = {poly_g1[0]:.2e} ± {numpy.sqrt(cov1[0, 0]):.2e}",
+        f"c = {poly_g1[1]:.2e} ± {numpy.sqrt(cov1[1, 1]):.2e}",
+    )
+    lab_2 = (
+        f"m = {poly_g2[0]:.2e} ± {numpy.sqrt(cov2[0, 0]):.2e}",
+        f"c = {poly_g2[1]:.2e} ± {numpy.sqrt(cov2[1, 1]):.2e}",
+    )
 
-    axes[1].scatter(shears[:, 0], pred_e[:, 0], alpha=alpha, color=c1, marker="x", s=s)
-    axes[1].scatter(shears[:, 1], pred_e[:, 1], alpha=alpha, color=c2, marker="o", s=s)
+    axes[0].scatter(shears1, diff_pred_g1, alpha=alpha, color=c1, marker="x", s=s, label=lab_1)
+    axes[0].scatter(shears2, diff_pred_g2, alpha=alpha, color=c2, marker="x", s=s, label=lab_2)
+    axes[0].plot(t, poly_g1[1] + poly_g1[0] * t, color=c1, lw=5)
+    axes[0].plot(t, poly_g2[1] + poly_g2[0] * t, color=c2, lw=5, ls="--")
+
+    axes[1].scatter(shears1, pred_e1, alpha=alpha, color=c1, marker="x", s=s)
+    axes[1].scatter(shears2, pred_e2, alpha=alpha, color=c2, marker="o", s=s)
     lims = axes[1].get_xlim()
     axes[1].plot(lims, lims, color="black", linestyle="--", linewidth=1, label="y=x")
 
@@ -282,113 +291,251 @@ def case_result(pred_e, shears, directory, symbol="gamma"):
         if symbol == "gamma":
             ax.set_xlim(-0.055, 0.055)
         else:
-            ax.set_xlim(-0.3, 0.3)
-        ax.set_ylim(-0.3, 0.3)
+            ax.set_xlim(-0.35, 0.35)
+        ax.set_ylim(-0.35, 0.35)
         ax.set_xlabel(rf"$\{symbol}^{{true}}$")
         ax.legend()
 
-    fig.suptitle(f"{directory.name}", fontsize=16)
+    fig.suptitle(f"{directory.name} : {pred_e1.shape[0]} images", fontsize=16)
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     fig.tight_layout()
     fig.savefig(directory, dpi=300)
 
 
+# def case_result(pred_e1, pred_e2, shears1, shears2, directory, symbol="gamma"):
+#     s = 5
+#     alpha = 0.5
+#     c1, c2 = "C0", "C1"
+#     t = numpy.linspace(min(shears1.min(), shears2.min()), max(shears1.max(), shears2.max()))
+
+#     diff_pred_g1 = pred_e1 - shears1
+#     diff_pred_g2 = pred_e2 - shears2
+#     poly_g1, cov1 = numpy.polyfit(shears1, diff_pred_g1, 1, cov=True)
+#     poly_g2, cov2 = numpy.polyfit(shears2, diff_pred_g2, 1, cov=True)
+
+#     fig, axes = pyplot.subplots(1, 2, figsize=(15, 6))
+#     axes = axes.flatten()
+
+#     lab_1 = (
+#         f"m = {poly_g1[0]:.2e} ± {numpy.sqrt(cov1[0, 0]):.2e}",
+#         f"c = {poly_g1[1]:.2e} ± {numpy.sqrt(cov1[1, 1]):.2e}",
+#     )
+#     lab_2 = (
+#         f"m = {poly_g2[0]:.2e} ± {numpy.sqrt(cov2[0, 0]):.2e}",
+#         f"c = {poly_g2[1]:.2e} ± {numpy.sqrt(cov2[1, 1]):.2e}",
+#     )
+
+#     axes[0].scatter(shears1, diff_pred_g1, alpha=alpha, color=c1, marker="x", s=s, label=lab_1)
+#     axes[0].scatter(shears2, diff_pred_g2, alpha=alpha, color=c2, marker="x", s=s, label=lab_2)
+#     axes[0].plot(t, poly_g1[1] + poly_g1[0] * t, color=c1, lw=5)
+#     axes[0].plot(t, poly_g2[1] + poly_g2[0] * t, color=c2, lw=5, ls="--")
+
+#     axes[1].scatter(shears1, pred_e1, alpha=alpha, color=c1, marker="x", s=s)
+#     axes[1].scatter(shears2, pred_e2, alpha=alpha, color=c2, marker="o", s=s)
+#     lims = axes[1].get_xlim()
+#     axes[1].plot(lims, lims, color="black", linestyle="--", linewidth=1, label="y=x")
+
+#     axes[0].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
+
+#     axes[0].set_ylabel(rf"$\epsilon^{{obs}}$ - $\{symbol}^{{true}}$", rotation=0, labelpad=20)
+#     axes[1].set_ylabel(r"$\epsilon^{obs}$", rotation=0, labelpad=20)
+
+#     for ax in axes:
+#         if symbol == "gamma":
+#             ax.set_xlim(-0.055, 0.055)
+#         else:
+#             ax.set_xlim(-0.35, 0.35)
+#         ax.set_ylim(-0.35, 0.35)
+#         ax.set_xlabel(rf"$\{symbol}^{{true}}$")
+#         ax.legend()
+
+#     fig.suptitle(f"{directory.name}", fontsize=16)
+#     fig.tight_layout(rect=[0, 0, 1, 0.95])
+#     fig.tight_layout()
+#     fig.savefig(directory, dpi=300)
+
+
+def logged_values(bins, preds, trues, pixel_scale, plot_dir):
+    fig, axes = pyplot.subplots(1, 3, figsize=(9, 3), sharey=True)
+    log = True
+    alpha = 0.2
+
+    axes[0].hist(
+        preds["SPHEROID_SERSICN"],
+        alpha=alpha,
+        bins=bins,
+        label=f"predictions {preds['SPHEROID_SERSICN'].shape[0]}",
+        log=log,
+    )
+    axes[0].hist(
+        trues["sersic"], alpha=alpha, bins=bins, label=f"truth {trues['sersic'].shape[0]}", log=log
+    )
+    axes[0].set_title("Sersic")
+    axes[0].legend()
+
+    axes[1].hist(
+        preds["MAG_AUTO"],
+        alpha=alpha,
+        bins=bins,
+        label=f"predictions {preds['MAG_AUTO'].shape[0]}",
+        log=log,
+    )
+    axes[1].hist(
+        trues["mag"], alpha=alpha, bins=bins, label=f"truth {trues['mag'].shape[0]}", log=log
+    )
+    axes[1].set_title("Magnitude")
+    axes[1].legend()
+
+    axes[2].hist(
+        preds["FLUX_RADIUS"] * pixel_scale,
+        alpha=alpha,
+        bins=bins,
+        label=f"predictions {preds['FLUX_RADIUS'].shape[0]}",
+        log=log,
+    )
+    axes[2].hist(
+        trues["hlr"], alpha=alpha, bins=bins, label=f"truth {trues['hlr'].shape[0]}", log=log
+    )
+    axes[2].set_title("Half-Light Radius (HLR)")
+    axes[2].legend()
+
+    fig.tight_layout()
+    fig.savefig(plot_dir / "logged_sersic_mag_hlr.pdf", dpi=300)
+    fig.show()
+
+
 def histos(
     detections,
-    sersic,
-    sersic_err,
-    true_sersic,
-    mag,
-    mag_err,
-    true_mag,
-    total_hlr,
-    total_true_hlr,
-    sex_pred_ellips,
-    preds_ellps,
-    true_ellps,
+    pred_galaxies_params,
+    true_galaxies_params,
+    pred_avg_e1,
+    pred_avg_e2,
+    true_images_params,
     directory,
     pixel_scale,
-    bins=50,
-    loggy=False,
+    bins,
+    density=True,
 ):
-    fig, axes = pyplot.subplots(3, 4, figsize=(16, 12))
+    fig, axes = pyplot.subplots(2, 4, figsize=(12, 6))
     alpha = 0.3
 
-    axes[0, 0].hist(preds_ellps[:, 0], alpha=alpha, bins=bins, label="predictions")
-    axes[0, 0].hist(true_ellps[:, 0], alpha=alpha, bins=bins, label="truth")
-    axes[0, 0].set_title("e1 model (weighted errors)")
-
-    axes[0, 1].hist(preds_ellps[:, 1], alpha=alpha, bins=bins, label="predictions")
-    axes[0, 1].hist(true_ellps[:, 1], alpha=alpha, bins=bins, label="truth")
-    axes[0, 1].set_title("e2 model (weighted errors)")
-
-    axes[0, 2].hist(sex_pred_ellips[:, 0], alpha=alpha, bins=bins, label="predictions")
-    axes[0, 2].hist(true_ellps[:, 0], alpha=alpha, bins=bins, label="truth")
-    axes[0, 2].set_title("e1 internal (NO weighted errors)")
-
-    axes[0, 3].hist(sex_pred_ellips[:, 1], alpha=alpha, bins=bins, label="predictions")
-    axes[0, 3].hist(true_ellps[:, 1], alpha=alpha, bins=bins, label="truth")
-    axes[0, 3].set_title("e2 internal (NO weighted errors)")
-
-    axes[1, 0].hist(sersic, alpha=alpha, bins=bins, label=f"predictions {sersic.shape[0]}")
-    axes[1, 0].hist(true_sersic, alpha=alpha, bins=bins, label=f"truth {true_sersic.shape[0]}")
-    axes[1, 0].set_title("sersic")
-
-    axes[1, 1].errorbar(
-        sersic,
-        sersic,
-        yerr=sersic_err,
+    axes[0, 0].hist(
+        pred_avg_e1,
         alpha=alpha,
-        ms=3,
-        fmt="o",
-        color="blue",
-        label="Predicted ± Error",
-        capsize=4,
-        zorder=1,
+        bins=bins,
+        density=density,
+        label=f"predictions {pred_avg_e1.shape[0]}",
     )
-    axes[1, 1].scatter(sersic, sersic, color="green", marker="o", s=20, zorder=2, label="Predicted")
-    axes[1, 1].plot(true_sersic, true_sersic, color="red", lw=2, label="truth", zorder=3)
+    axes[0, 0].hist(
+        true_images_params["avg_obs_e1"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"truth {true_images_params['avg_obs_e1'].shape[0]}",
+    )
+    axes[0, 0].set_title("e1")
+
+    axes[0, 1].hist(
+        pred_avg_e2,
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"predictions {pred_avg_e2.shape[0]}",
+    )
+    axes[0, 1].hist(
+        true_images_params["avg_obs_e2"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"truth {true_images_params['avg_obs_e2'].shape[0]}",
+    )
+    axes[0, 1].set_title("e2")
+
+    axes[0, 2].hist(
+        pred_galaxies_params["ELLIP1MODEL_IMAGE"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"predictions {pred_galaxies_params['ELLIP1MODEL_IMAGE'].shape[0]}",
+    )
+    axes[0, 2].hist(
+        true_galaxies_params["obs_e1"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"truth {true_galaxies_params['obs_e1'].shape[0]}",
+    )
+    axes[0, 2].set_title("e1")
+
+    axes[0, 3].hist(
+        pred_galaxies_params["ELLIP2MODEL_IMAGE"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"predictions {pred_galaxies_params['ELLIP2MODEL_IMAGE'].shape[0]}",
+    )
+    axes[0, 3].hist(
+        true_galaxies_params["obs_e2"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"truth {true_galaxies_params['obs_e2'].shape[0]}",
+    )
+    axes[0, 3].set_title("e2")
+
+    axes[1, 0].hist(
+        pred_galaxies_params["FLUX_RADIUS"] * pixel_scale,
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"predictions {pred_galaxies_params['FLUX_RADIUS'].shape[0]}",
+    )
+    axes[1, 0].hist(
+        true_galaxies_params["hlr"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"truth {true_galaxies_params['hlr'].shape[0]}",
+    )
+    axes[1, 0].set_title(f"hlr with pixel scale = {pixel_scale}")
+
+    axes[1, 1].hist(
+        pred_galaxies_params["SPHEROID_SERSICN"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"predictions {pred_galaxies_params['SPHEROID_SERSICN'].shape[0]}",
+    )
+    axes[1, 1].hist(
+        true_galaxies_params["sersic"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"truth {true_galaxies_params['sersic'].shape[0]}",
+    )
     axes[1, 1].set_title("sersic")
 
-    axes[1, 2].hist(mag, alpha=alpha, bins=bins, label=f"predictions {mag.shape[0]}")
-    axes[1, 2].hist(true_mag, alpha=alpha, bins=bins, label=f"truth {true_mag.shape[0]}")
+    axes[1, 2].hist(
+        pred_galaxies_params["MAG_AUTO"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"predictions {pred_galaxies_params['MAG_AUTO'].shape[0]}",
+    )
+    axes[1, 2].hist(
+        true_galaxies_params["mag"],
+        alpha=alpha,
+        bins=bins,
+        density=density,
+        label=f"truth {true_galaxies_params['mag'].shape[0]}",
+    )
     axes[1, 2].set_title("mag")
 
-    axes[1, 3].errorbar(
-        mag,
-        mag,
-        yerr=mag_err,
-        alpha=alpha,
-        ms=3,
-        fmt="o",
-        color="blue",
-        label="Predicted ± Error",
-        capsize=4,
-        zorder=1,
-    )
-    axes[1, 3].scatter(mag, mag, color="green", marker="o", s=20, zorder=2, label="Predicted")
-    axes[1, 3].plot(true_mag, true_mag, color="red", lw=2, label="truth", zorder=3)
-    axes[1, 3].set_title("mag")
+    axes[1, 3].hist(detections, bins=bins, label=f"detections {numpy.sum(detections)}")
+    axes[1, 3].set_title("galaxies")
 
-    axes[2, 0].hist(
-        total_hlr * pixel_scale, alpha=alpha, bins=bins, label=f"predictions {total_hlr.shape[0]}"
-    )
-    axes[2, 0].hist(
-        total_true_hlr, alpha=alpha, bins=bins, label=f"truth {total_true_hlr.shape[0]}"
-    )
-    axes[2, 0].set_title(f"hlr with pixel scale = {pixel_scale}")
-
-    axes[2, 1].hist(detections, bins=bins, label=f"detections {numpy.sum(detections)}")
-    axes[2, 1].set_yscale("log")
-    axes[2, 1].set_title("galaxies")
-
-    for idx, ax in enumerate(axes.ravel()):
-        if loggy:
-            ax.set_yscale("log")
-        if idx < len(axes.ravel()) - 2:
-            ax.legend()
-    fig.delaxes(axes[2, 2])
-    fig.delaxes(axes[2, 3])
+    for ax in axes.ravel():
+        ax.legend()
     fig.tight_layout()
     fig.savefig(directory / "histos.pdf", dpi=300)
     fig.show()
@@ -438,30 +585,18 @@ def case_result_param(pred, truth, loss_comp, loss_gal, directory, symbol, err=0
     fig.tight_layout()
     fig.savefig(directory / f"results_{symbol}.pdf", dpi=300)
 
-
-def delete_duplicate(df_pred):
-    df_pred = df_pred[df_pred["NUMBER_ASSOC"] == 1]
-
-    duplicated_mask = df_pred["assoc1"].duplicated()
-
-    df_duplicates = df_pred[duplicated_mask]
-
-    distance = numpy.sqrt(
-        (df_duplicates["X_IMAGE"] - df_duplicates["assoc1"]) ** 2
-        + (df_duplicates["Y_IMAGE"] - df_duplicates["assoc2"]) ** 2
-    )
-
-    df_duplicates = df_duplicates.copy()
-    df_duplicates["distance"] = distance
-
-    df_best = (
-        df_duplicates.sort_values("distance")
-        .drop_duplicates(subset=["assoc1"], keep="first")
-        .drop(columns=["distance"])
-    )
-
-    df_pred = (
-        concat([df_pred[~duplicated_mask], df_best]).sort_values("assoc1").reset_index(drop=True)
-    )
-
-    return df_pred
+    # axes[1, 1].errorbar(
+    #     sersic,
+    #     sersic,
+    #     yerr=sersic_err,
+    #     alpha=alpha,
+    #     ms=3,
+    #     fmt="o",
+    #     color="blue",
+    #     label="Predicted ± Error",
+    #     capsize=4,
+    #     zorder=1,
+    # )
+    # axes[1, 1].scatter(sersic, sersic, color="green", marker="o", s=20, zorder=2, label="Pred")
+    # axes[1, 1].plot(true_sersic, true_sersic, color="red", lw=2, label="truth", zorder=3)
+    # axes[1, 1].set_title("sersic")

@@ -24,9 +24,13 @@ from sourcextractor.config import (
 
 ## S++ PROCESSING UNIT
 FILE_NAME = Path(argv[1])
-PSF_DIR = Path("/net/GECO/pisco/PIX2SHEAR/DATASETS/psf")
-PSF = PSF_DIR / "psf_style-airy_size-81_pixelscale-0.06.fits"
-measurement_images = [MeasurementImage(fits_file=str(FILE_NAME), psf_file=str(PSF), gain=3.1)]
+PSF_DIR = Path("/net/GECO/pisco/PIX2SHEAR/DATASETS/psf_se")
+# PSF = PSF_DIR / "psf_style-airy_size-81_pixelscale-0.05.fits"
+PSF = PSF_DIR / "psf_style-airy_size-41_pixelscale-0.1.fits"
+
+measurement_images = [
+    MeasurementImage(fits_file=str(FILE_NAME), psf_file=str(PSF), gain=3.1, saturation=10_000)
+]
 measurement_group = MeasurementGroup(ImageGroup(images=measurement_images))
 
 ## PARAMETERS
@@ -37,15 +41,15 @@ rad = FreeParameter(
 e_range = Range((-0.999, 0.999), RangeType.LINEAR)
 e1 = FreeParameter(0.0, e_range)
 e2 = FreeParameter(0.0, e_range)
-add_prior(e1, 0.0, 0.26)
-add_prior(e2, 0.0, 0.26)
+# add_prior(e1, 0.0, 0.26)
+# add_prior(e2, 0.0, 0.26)
 emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag of ellip vector
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
 X_ser = FreeParameter(-2.3, Range((-10, 10), RangeType.LINEAR))
-add_prior(X_ser, -2.8, 1.1)
-MIN_SERSIC = 0.3
-MAX_SERSIC = 10
+add_prior(X_ser, -2.6, 1.1)
+MIN_SERSIC = 0.2
+MAX_SERSIC = 6.5
 sersic = DependentParameter(
     lambda x: (MAX_SERSIC * numpy.exp(x) + MIN_SERSIC) / (1 + numpy.exp(x)), X_ser
 )
@@ -63,8 +67,8 @@ mag = DependentParameter(lambda f, zp=ZP: zp - 2.5 * numpy.log10(f), flux)
 add_model(measurement_group, SersicModel(x, y, flux, rad, ratio, angle, sersic))
 
 ## USER OUTPUTS
-add_output_column("x", x)
-add_output_column("y", y)
+add_output_column("x_model", x)
+add_output_column("y_model", y)
 add_output_column("sersic_model", sersic)
 add_output_column("mag_model", mag)
 add_output_column("flux_model", flux)
