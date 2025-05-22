@@ -290,7 +290,7 @@ def x_n_seric(MIN_SERSIC, MAX_SERSIC, mu_x, sigma_x, plot_dir):
     fig.show()
 
 
-def case_result(pred_e1, pred_e2, shears1, shears2, directory, symbol="gamma"):
+def case_result(pred_e1, pred_e2, shears1, shears2, number, directory, symbol="gamma"):
     s = 5
     alpha = 0.25
     c1, c2 = "C0", "C1"
@@ -301,16 +301,16 @@ def case_result(pred_e1, pred_e2, shears1, shears2, directory, symbol="gamma"):
     poly_g1, cov1 = numpy.polyfit(shears1, diff_pred_g1, 1, cov=True)
     poly_g2, cov2 = numpy.polyfit(shears2, diff_pred_g2, 1, cov=True)
 
-    fig, axes = pyplot.subplots(1, 2, figsize=(12, 5), sharey=True)
+    fig, axes = pyplot.subplots(1, 2, figsize=(14, 5), sharey=True)
     axes = axes.flatten()
 
     lab_1 = (
-        f"m = {poly_g1[0]:.2e} ± {numpy.sqrt(cov1[0, 0]):.2e}",
-        f"c = {poly_g1[1]:.2e} ± {numpy.sqrt(cov1[1, 1]):.2e}",
+        f"e1 : m = {poly_g1[0]:.2e} ± {numpy.sqrt(cov1[0, 0]):.2e}",
+        f"e2 : c = {poly_g1[1]:.2e} ± {numpy.sqrt(cov1[1, 1]):.2e}",
     )
     lab_2 = (
-        f"m = {poly_g2[0]:.2e} ± {numpy.sqrt(cov2[0, 0]):.2e}",
-        f"c = {poly_g2[1]:.2e} ± {numpy.sqrt(cov2[1, 1]):.2e}",
+        f"e1 : m = {poly_g2[0]:.2e} ± {numpy.sqrt(cov2[0, 0]):.2e}",
+        f"e2 : c = {poly_g2[1]:.2e} ± {numpy.sqrt(cov2[1, 1]):.2e}",
     )
 
     axes[0].scatter(shears1, diff_pred_g1, alpha=alpha, color=c1, marker="x", s=s, label=lab_1)
@@ -337,7 +337,9 @@ def case_result(pred_e1, pred_e2, shears1, shears2, directory, symbol="gamma"):
         ax.set_xlabel(rf"$\{symbol}^{{true}}$")
         ax.legend()
 
-    fig.suptitle(f"{directory.name} : {pred_e1.shape[0]} images", fontsize=16)
+    fig.suptitle(
+        f"{directory.name} : {pred_e1.shape[0]} images with {number} galaxies", fontsize=16
+    )
     fig.tight_layout(rect=[0, 0, 1, 0.95])
     fig.tight_layout()
     fig.savefig(directory, dpi=300)
@@ -421,7 +423,7 @@ def histos(
     bins,
     density=True,
 ):
-    fig, axes = pyplot.subplots(2, 4, figsize=(12, 6))
+    fig, axes = pyplot.subplots(2, 4, figsize=(16, 8))
     alpha = 0.3
 
     axes[0, 0].hist(
@@ -554,7 +556,7 @@ def background(names):
     pyplot.colorbar(im)
 
 
-def case_result_param(pred, true, symbol, err=0):
+def case_result_param(directory, pred, true, symbol, err=0):
     pred = numpy.array(pred)
     true = numpy.array(true)
     err = numpy.array(err)
@@ -568,14 +570,13 @@ def case_result_param(pred, true, symbol, err=0):
     axs[0].set_ylabel("Pred - True")
     axs[0].set_title(f"Residuals of {symbol}")
 
-    lim_min = min(pred.min(), true.min())
-    lim_max = max(pred.max(), true.max())
-
     if symbol == "hlr":
         axs[1].scatter(true, pred, marker="x", s=s)
     else:
         axs[1].errorbar(true, pred, yerr=err, fmt="x", capsize=2, markersize=3, alpha=0.5)
 
+    lim_min = min(pred.min(), true.min())
+    lim_max = max(pred.max(), true.max())
     axs[1].plot([lim_min, lim_max], [lim_min, lim_max], "k--", zorder=10)
     axs[1].set_xlim(lim_min, lim_max)
     axs[1].set_ylim(lim_min, lim_max)
@@ -584,4 +585,5 @@ def case_result_param(pred, true, symbol, err=0):
     axs[1].set_title(f"Predicted vs True {symbol}")
 
     fig.tight_layout()
+    fig.savefig(directory / f"param_{symbol}.pdf", dpi=300)
     fig.show()

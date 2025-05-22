@@ -1,4 +1,3 @@
-from pathlib import Path
 from sys import argv
 
 import numpy
@@ -13,7 +12,6 @@ from sourcextractor.config import (
     SersicModel,
     add_model,
     add_output_column,
-    add_prior,
     get_flux_parameter,
     get_pos_parameters,
     set_deblend_factor,
@@ -23,36 +21,21 @@ from sourcextractor.config import (
 )
 
 ## S++ PROCESSING UNIT
-FILE_NAME = Path(argv[1])
-PSF_DIR = Path("/net/GECO/pisco/PIX2SHEAR/DATASETS/psf_se")
-# PSF = PSF_DIR / "psf_style-airy_size-81_pixelscale-0.05.fits"
-PSF = PSF_DIR / "psf_style-airy_size-41_pixelscale-0.1.fits"
-
-measurement_images = [
-    MeasurementImage(fits_file=str(FILE_NAME), psf_file=str(PSF), gain=3.1, saturation=10_000)
-]
-measurement_group = MeasurementGroup(ImageGroup(images=measurement_images))
+measurement_images = MeasurementImage(
+    fits_file=argv[1], psf_file=argv[2], gain=3.1, saturation=10_000
+)
+measurement_group = MeasurementGroup(ImageGroup(images=[measurement_images]))
 
 ## PARAMETERS
 x, y = get_pos_parameters()  # center of the galaxy
-rad = FreeParameter(
-    lambda o: o.radius, Range(lambda v, o: (0.01, 10 * v), RangeType.EXPONENTIAL)
-)  # effective radius: encloses 50% of the total light
+rad = FreeParameter(lambda o: o.radius, Range(lambda v, o: (0.01, 10 * v), RangeType.EXPONENTIAL))
 e_range = Range((-0.999, 0.999), RangeType.LINEAR)
 e1 = FreeParameter(0.0, e_range)
 e2 = FreeParameter(0.0, e_range)
-# add_prior(e1, 0.0, 0.26)
-# add_prior(e2, 0.0, 0.26)
 emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag of ellip vector
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
-X_ser = FreeParameter(-2.3, Range((-10, 10), RangeType.LINEAR))
-add_prior(X_ser, -2.6, 1.1)
-MIN_SERSIC = 0.2
-MAX_SERSIC = 6.5
-sersic = DependentParameter(
-    lambda x: (MAX_SERSIC * numpy.exp(x) + MIN_SERSIC) / (1 + numpy.exp(x)), X_ser
-)
+sersic = FreeParameter(0.8, Range((0.2, 10), RangeType.LINEAR))
 
 ## MODEL
 use_iterative_fitting(True)
@@ -74,3 +57,14 @@ add_output_column("mag_model", mag)
 add_output_column("flux_model", flux)
 add_output_column("e1_model", e1)
 add_output_column("e2_model", e2)
+
+# from sourcextractor.config import add_prior
+# add_prior(e1, 0.0, 0.26)
+# add_prior(e2, 0.0, 0.26)
+# X_ser = FreeParameter(-2.3, Range((-10, 10), RangeType.LINEAR))
+# add_prior(X_ser, -2.6, 1.1)
+# MIN_SERSIC = 0.2
+# MAX_SERSIC = 6.2
+# sersic = DependentParameter(
+#     lambda x: (MAX_SERSIC * numpy.exp(x) + MIN_SERSIC) / (1 + numpy.exp(x)), X_ser
+# )

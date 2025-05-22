@@ -12,12 +12,17 @@ IMAGES_DIR=$3
 CATALOG_DIR=$4
 NB_CHECK_IMAGES=$5
 ASSOC=$6
+PSF=$7
+PSF_SAMPLING=$8
+SAMPLING_FACTOR=$9
+THRESHOLD=${10}
+MIN_NB_PIXEL=${11}
 
 ## ACTIVATE ENV
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate PISCO
 
-## GET EACH SIMU TO RUN
+## GET EACH SIMU NUMBER TO RUN
 index=$SLURM_ARRAY_TASK_ID
 echo $index
 index_file=$(printf '%06d' $index)
@@ -29,19 +34,14 @@ simu_name=$(basename $fits_file)
 command=(
     sourcextractor++
     --detection-image $fits_file
-    --python-config-file $(pwd)/config.py $fits_file
+    --python-config-file $(pwd)/config.py $fits_file $PSF
     --config-file $(pwd)/config.config
     --output-catalog-filename $CATALOG_DIR/$simu_name
-    --detection-threshold 2                 # detection threshold above the background
-    --detection-minimum-area 5              # min. # of pixels above threshold
-    --detection-image-saturation 10000      # detection image saturation level (0 = no saturation)
-    --detection-image-interpolation 0       # interpolate bad pixels in detection image
-    --detection-image-interpolation-gap 5   # Maximum number if pixels to interpolate over
-    --smoothing-box-size 3                  # background median filter size
-    --model-fitting-iterations 400          # maximum number of iterations allowed for model fitting
-    --model-fitting-engine levmar           # Least squares engine
-    --psf-pixel-sampling 1                # Generate a gaussian PSF with the given pixel sampling step size
-    --sampling-scale-factor 1               # Scaling factor for the rendering of models (e.g. 2 = twice the resolution)
+    --detection-threshold $THRESHOLD                # detection threshold above the background
+    --detection-minimum-area $MIN_NB_PIXEL          # min. # of pixels above threshold
+    --psf-pixel-sampling $PSF_SAMPLING              # Generate a gaussian PSF with the given pixel sampling step size
+    --sampling-scale-factor $SAMPLING_FACTOR        # Scaling factor for the rendering of models (e.g. 2 = twice the resolution)
+    --model-fitting-iterations 400                  # maximum number of iterations allowed for model fitting
 )
 # Adding assoc
 if [[ $ASSOC -eq 1 ]]; then

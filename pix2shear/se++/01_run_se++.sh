@@ -1,12 +1,21 @@
 #!/bin/bash
 PIX2SHEAR_DIR=/net/GECO/pisco/PIX2SHEAR
+PSF_DIR=/net/GECO/pisco/PIX2SHEAR/DATASETS/psf_se
 
 ## USER INPUT
-VERSION=0.0.1
+VERSION=0.0.8
 MAX_PARALLEL_JOBS=115   # max cc LAM : 125
-NB_CHECK_IMAGES=100      # number of images segmentation/residual/fitting/background
-ASSOC=1                 # with associated locations (0 or 1)
+NB_CHECK_IMAGES=100     # number of images segmentation/residual/fitting/background
+ASSOC=0                 # with associated locations (0 or 1)
 ENTIRE_DATASET=True
+PSF="psf_style-airy_size-41_pixelscale-0.1.fits"
+PSF_SAMPLING=1
+SAMPLING_FACTOR=1
+# PSF="psf_style-airy_size-81_pixelscale-0.05.fits"
+# PSF_SAMPLING=0.5
+# SAMPLING_FACTOR=2
+THRESHOLD=1.75
+MIN_NB_PIXEL=6
 
 ## DIRECTORIES
 DATATEST_DIR=$PIX2SHEAR_DIR/DATASETS/pisco_euclid_se/$VERSION
@@ -36,7 +45,7 @@ fi
 
 ## CREATE RESULTS DIRECTORIES
 create_dir() {
-    mkdir -p $1 && echo $1  # return the directory path
+    mkdir -p $1 && echo $1
 }
 IMAGES_DIR=$(create_dir $RESULTS_DIR/IMAGES)
 CATALOG_DIR=$(create_dir $RESULTS_DIR/CATALOG)
@@ -51,17 +60,17 @@ fi
 
 ## RUN IN PARALLEL
 ARRAY_RANGE=0-$((NUM_FILES - 1)) # slurm arrays are zero-indexed
-sbatch --array=${ARRAY_RANGE}%${MAX_PARALLEL_JOBS} \
-       --error=$LOG_DIR/Err_%a.log \
-       --output=$LOG_DIR/Out_%a.log \
-       --time 00:10:00  \
-       --mem 5G \
-       --ntasks-per-core 1 \
-       --ntasks 1 \
-       --cpus-per-task 1 \
-       --nodes 1 \
-       -p short \
-       --job-name=SE++_PISCO \
-       --mail-type=FAIL \
-       --mail-user=romain.brunet@lam.fr \
-       parallel_se++.sh $DATATEST_DIR $RESULTS_DIR $IMAGES_DIR $CATALOG_DIR $NB_CHECK_IMAGES $ASSOC
+sbatch  -p short \
+        --array=${ARRAY_RANGE}%${MAX_PARALLEL_JOBS} \
+        --error=$LOG_DIR/Err_%a.log \
+        --output=$LOG_DIR/Out_%a.log \
+        --time 00:10:00  \
+        --mem 5G \
+        --ntasks-per-core 1 \
+        --ntasks 1 \
+        --cpus-per-task 1 \
+        --nodes 1 \
+        --job-name=SE++_PISCO \
+        --mail-type=FAIL \
+        --mail-user=romain.brunet@lam.fr \
+        parallel_se++.sh $DATATEST_DIR $RESULTS_DIR $IMAGES_DIR $CATALOG_DIR $NB_CHECK_IMAGES $ASSOC $PSF_DIR/$PSF $PSF_SAMPLING $SAMPLING_FACTOR $THRESHOLD $MIN_NB_PIXEL

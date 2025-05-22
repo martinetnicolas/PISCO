@@ -6,7 +6,6 @@ from astropy import io, table, units
 
 warnings.simplefilter("ignore", category=units.UnitsWarning)
 
-
 # Read parameters
 CATALOG_DIR = Path(argv[1])
 IMAGES_DIR = Path(argv[2])

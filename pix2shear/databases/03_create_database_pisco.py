@@ -9,11 +9,11 @@ from tqdm import tqdm
 from utils import DIR_DATASETS, DIRS, RED, RESET, write_fits
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "0.0.7"
+VERSION = "0.0.8"
 NB_OF_SAMPLES = 10_000
 SE_VERSION = True
 SAMPLING = 1
-PERCENTAGE_COSMOS = 25
+PERCENTAGE_COSMOS = 0
 GAL_TYPE = "real"  # "real" or "parametric"
 NB_GALAXIES = 10
 ELLIPS_STYLE = "gaussian"  # gaussian / uniform probability for ellipticities

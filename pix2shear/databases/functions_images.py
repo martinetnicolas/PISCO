@@ -194,13 +194,12 @@ def create_images(index_args_tuple, shape_noise_add, shape_noise_sub, style_psf,
     for i in range(NB_OBJET):
         if params["index_cosmos"][i] > 0:
             # compute Sersic profile with cosmos catalog galaxies
-            INDEX = int(params["index_cosmos"][i])
             SAMPLE = str(params["sample_cosmos"][i])
-
             cosmos_cat = galsim.COSMOSCatalog(
                 sample=SAMPLE, dir=DIRS["cosmos"], exclusion_level="none", exptime=EXPTIME
             )
 
+            INDEX = int(params["index_cosmos"][i])
             gal = cosmos_cat.makeGalaxy(
                 index=INDEX,
                 gal_type=gal_type,
