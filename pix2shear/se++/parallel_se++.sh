@@ -13,10 +13,9 @@ CATALOG_DIR=$4
 NB_CHECK_IMAGES=$5
 ASSOC=$6
 PSF=$7
-PSF_SAMPLING=$8
-SAMPLING_FACTOR=$9
-THRESHOLD=${10}
-MIN_NB_PIXEL=${11}
+SAMPLING_FACTOR=$8
+THRESHOLD=$9
+MIN_NB_PIXEL=${10}
 
 ## ACTIVATE ENV
 eval "$(micromamba shell hook --shell bash)"
@@ -39,9 +38,8 @@ command=(
     --output-catalog-filename $CATALOG_DIR/$simu_name
     --detection-threshold $THRESHOLD                # detection threshold above the background
     --detection-minimum-area $MIN_NB_PIXEL          # min. # of pixels above threshold
-    --psf-pixel-sampling $PSF_SAMPLING              # Generate a gaussian PSF with the given pixel sampling step size
     --sampling-scale-factor $SAMPLING_FACTOR        # Scaling factor for the rendering of models (e.g. 2 = twice the resolution)
-    --model-fitting-iterations 400                  # maximum number of iterations allowed for model fitting
+    --model-fitting-iterations 300                  # maximum number of iterations allowed for model fitting
 )
 # Adding assoc
 if [[ $ASSOC -eq 1 ]]; then

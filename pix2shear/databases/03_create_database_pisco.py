@@ -9,25 +9,25 @@ from tqdm import tqdm
 from utils import DIR_DATASETS, DIRS, RED, RESET, write_fits
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "0.0.8"
+VERSION = "0.0.0"
 NB_OF_SAMPLES = 10_000
 SE_VERSION = True
 SAMPLING = 1
 PERCENTAGE_COSMOS = 0
 GAL_TYPE = "real"  # "real" or "parametric"
-NB_GALAXIES = 10
+NB_GALAXIES_PER_IMAGE = 10
 ELLIPS_STYLE = "gaussian"  # gaussian / uniform probability for ellipticities
 PIXELS_OUT = False  # use a 10 pixels band-free around the image
-SHAPE_NOISE_ADD = False
-SHAPE_NOISE_SUB = False
+NOISE_CANCEL = False
 LHS_POS = False  # x,y included in LHS
-SEED_DATABASE = 22
+SEED_DATABASE = 2222
 STYLE_PSF = "airy"  # airy / euclid
 STYLE_DB = "pisco_euclid"
 SPLIT = "dataset"
 DIR_VERSION = DIRS["pisco_euclid"] / VERSION
-DIR_SE = DIRS["pisco_euclid_se"] / VERSION
-DIR_SE.mkdir(parents=True, exist_ok=True)
+if SE_VERSION:
+    DIR_SE = DIRS["pisco_euclid_se"] / VERSION
+    DIR_SE.mkdir(parents=True, exist_ok=True)
 
 
 # CREATE DB ---------------------------------------------------------------------------------
@@ -48,17 +48,17 @@ if __name__ == "__main__":
         ellips_style=ELLIPS_STYLE,
         pixel_out=PIXELS_OUT,
         seed_database=SEED_DATABASE,
-        shape_noise_add=SHAPE_NOISE_ADD,
-        shape_noise_sub=SHAPE_NOISE_SUB,
+        noise_cancel=NOISE_CANCEL,
         style_psf=STYLE_PSF,
         lhs_pos=LHS_POS,
         percentage_cosmos=PERCENTAGE_COSMOS,
         gal_type=GAL_TYPE,
-        nb_galaxies=NB_GALAXIES,
+        nb_galaxies_per_image=NB_GALAXIES_PER_IMAGE,
     ).download_and_prepare()
 
     # allow permissions to pisco group
-    DIR_SE.chmod(0o1770)
+    if SE_VERSION:
+        DIR_SE.chmod(0o1770)
     DIR_VERSION.chmod(0o1770)
 
     # deleting tdfs default folder
@@ -92,7 +92,6 @@ if __name__ == "__main__":
             gal_params.T,
             columns=["int_e1", "int_e2", "obs_e1", "obs_e2", "x", "y", "mag", "hlr", "sersic"],
         )
-        path_csv = DIR_SE / f"{global_index:06d}_true_galaxies_params.csv"
         df["image"] = global_index
         all_gal_params.append(df)
 
@@ -106,15 +105,15 @@ if __name__ == "__main__":
                 "avg_obs_e2": avg_obs_e[1],
                 "avg_int_e1": avg_int_e[0],
                 "avg_int_e2": avg_int_e[1],
-                "seeds": keys[0],
-                "hashed_key": keys[1],
-                "k": keys[2],
+                "key": keys[0],
+                "snc": keys[1],
             }
         )
 
         # If SE version needed
         if SE_VERSION:
             # save galaxy parameters per image
+            path_csv = DIR_SE / f"{global_index:06d}_true_galaxies_params.csv"
             df.to_csv(path_or_buf=path_csv, index=False)
 
             # save image as FITS
@@ -131,12 +130,13 @@ if __name__ == "__main__":
     df_all_galaxies.to_csv(DIR_VERSION / "galaxies_parameters_true.csv", index=False)
 
     # Check
-    NUMBER = 10
+    NUMBER = 5
     df_img = read_csv(DIR_VERSION / "images_parameters_true.csv")
-    df_gal_se = read_csv(DIR_SE / f"{NUMBER:06d}_true_galaxies_params.csv")
     df_gal = read_csv(DIR_VERSION / "galaxies_parameters_true.csv")
     print(df_img.iloc[NUMBER][["avg_obs_e1", "avg_obs_e2"]])
-    print(df_gal_se[["obs_e1", "obs_e2"]].mean())
     print(df_gal[df_gal["image"] == NUMBER][["obs_e1", "obs_e2"]].mean())
+    if SE_VERSION:
+        df_gal_se = read_csv(DIR_SE / f"{NUMBER:06d}_true_galaxies_params.csv")
+        print(df_gal_se[["obs_e1", "obs_e2"]].mean())
 
     print(f"{RED}FINITO{RESET}")

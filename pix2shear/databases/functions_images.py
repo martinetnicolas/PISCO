@@ -8,12 +8,13 @@ from utils import DIRS, DTYPE_16, DTYPE_32
 
 
 def unpack_lhs(arguments):
-    g1, g2 = arguments[0]
+    g1, g2, snc = arguments[0]
     lhs = arguments[1]
 
     return {
         "g1": g1,
         "g2": g2,
+        "snc": snc,
         "int_e1": lhs[:, 0],
         "int_e2": lhs[:, 1],
         "off_x": lhs[:, 2],
@@ -64,16 +65,6 @@ def build_psf(style):
         )
 
     return psf
-
-
-def rotation(k):
-    theta_rad = numpy.radians(k * 90)
-    theta_rot = k * 2 * 90 * galsim.degrees
-
-    cos2t = 0 if abs(numpy.cos(2 * theta_rad)) < 1e-10 else numpy.cos(2 * theta_rad)
-    sin2t = 0 if abs(numpy.sin(2 * theta_rad)) < 1e-10 else numpy.sin(2 * theta_rad)
-
-    return cos2t, sin2t, theta_rot
 
 
 def build_full_image(image_size, pixel_scale):
@@ -150,16 +141,10 @@ def apply_bin_indices_area(image, label_stamp, bounds_pixel):
 
 
 # create pisco euclid-like image
-def create_images(index_args_tuple, shape_noise_add, shape_noise_sub, style_psf, gal_type, k):
+def create_images(index_args_tuple, style_psf, gal_type):
     # get seed for noise and args for galsim
-    seed, arguments = index_args_tuple
-    seed = int(seed)
-
-    # key for tfds
-    hashed_key = seed + 1
-    hashed_key *= 2 if shape_noise_add else 1
-    hashed_key *= 2 if shape_noise_sub else 1
-    hashed_key -= k
+    key, arguments = index_args_tuple
+    key = int(key)
 
     # params simu
     params = unpack_lhs(arguments)
@@ -170,16 +155,9 @@ def create_images(index_args_tuple, shape_noise_add, shape_noise_sub, style_psf,
     # psf
     psf = build_psf(style_psf)
 
-    # rotation
-    cos2t, sin2t, theta_rot = rotation(k)
-
-    # intrinsic ellipticities
-    int_e1 = params["int_e1"] * cos2t + params["int_e2"] * sin2t
-    int_e2 = -params["int_e1"] * sin2t + params["int_e2"] * cos2t
-
     # observed ellipticities
-    obs_e1 = int_e1 + params["g1"]
-    obs_e2 = int_e2 + params["g2"]
+    obs_e1 = params["int_e1"] + params["g1"]
+    obs_e2 = params["int_e2"] + params["g2"]
 
     # calculate gal flux
     flux = EXPTIME / GAIN * 10 ** (-(params["mag"] - ZP) / 2.5)
@@ -211,6 +189,10 @@ def create_images(index_args_tuple, shape_noise_add, shape_noise_sub, style_psf,
             # adding our own flux
             gal = gal.withFlux(flux[i])
 
+            # rotate galaxy
+            ang = 0 if params["snc"] in [1, 3] else 90
+            gal = gal.rotate(theta=ang * galsim.degrees)
+
         else:
             # compute Sersic profile with galsim
             gal = galsim.Sersic(
@@ -222,14 +204,10 @@ def create_images(index_args_tuple, shape_noise_add, shape_noise_sub, style_psf,
             )
 
             # apply ellips
-            gal = gal.shear(e1=int_e1[i], e2=int_e2[i])
-
-        # rotate galaxy
-        gal = gal.rotate(theta=theta_rot)
+            gal = gal.shear(e1=params["int_e1"][i], e2=params["int_e2"][i])
 
         # apply shear
         gal = gal.shear(g1=params["g1"], g2=params["g2"])
-        # gal = gal.shear(g1=params["g1"][i], g2=params["g2"][i])
 
         # convolve galaxy with PSF
         final = galsim.Convolve([psf, gal])
@@ -265,37 +243,31 @@ def create_images(index_args_tuple, shape_noise_add, shape_noise_sub, style_psf,
     # gaussian noise image
     F_SKY = PIXEL_SCALE ** (2) * EXPTIME * 10 ** (-(SKY_BKG - ZP) / 2.5)  # e-/pixel
     variance = (numpy.sqrt(readoutnoise**2 + F_SKY) / GAIN) ** 2  # e- -> ADU
-    noise = galsim.GaussianNoise(rng=galsim.BaseDeviate(seed), sigma=math.sqrt(variance))
+    noise = galsim.GaussianNoise(rng=galsim.BaseDeviate(key), sigma=math.sqrt(variance))
     noise_image.addNoise(noise)
 
     # add noise
-    if shape_noise_add and shape_noise_sub:
-        full_image += noise_image if k < 2 else -noise_image
-    elif shape_noise_add:
-        full_image += noise_image
-    elif shape_noise_sub:
-        full_image -= noise_image
-    else:
-        full_image += noise_image
+    sign = 1 if params["snc"] in [1, 2] else -1
+    full_image += sign * noise_image
 
     # return arguments
     avg_obs_e1 = numpy.mean(obs_e1)
     avg_obs_e2 = numpy.mean(obs_e2)
-    avg_int_e1 = numpy.mean(int_e1)
-    avg_int_e2 = numpy.mean(int_e2)
-    avg_g1 = numpy.mean(params["g1"])
-    avg_g2 = numpy.mean(params["g2"])
+    avg_int_e1 = numpy.mean(params["int_e1"])
+    avg_int_e2 = numpy.mean(params["int_e2"])
+    avg_g1 = params["g1"]
+    avg_g2 = params["g2"]
 
     dict_results = {
         "image": full_image.array.astype(DTYPE_16),
         "avg_g": numpy.array([avg_g1, avg_g2]).astype(DTYPE_32),
         "avg_obs_e": numpy.array([avg_obs_e1, avg_obs_e2]).astype(DTYPE_32),
         "avg_int_e": numpy.array([avg_int_e1, avg_int_e2]).astype(DTYPE_32),
-        "keys": numpy.array([seed, hashed_key, k]).astype(DTYPE_32),
+        "keys": numpy.array([key, params["snc"]]).astype(DTYPE_32),
         "gal_params": numpy.stack(
             [
-                int_e1,
-                int_e2,
+                params["int_e1"],
+                params["int_e2"],
                 obs_e1,
                 obs_e2,
                 params["x"],
@@ -307,7 +279,7 @@ def create_images(index_args_tuple, shape_noise_add, shape_noise_sub, style_psf,
         ).astype(DTYPE_32),
     }
 
-    return hashed_key, dict_results
+    return key, dict_results
 
 
 # --------------------------------------------------------------------------------------------------

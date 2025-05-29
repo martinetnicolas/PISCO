@@ -127,7 +127,11 @@ def draw_and_project_lhs_img(seed, n_samples, decimals=3):
     max_shears = {2: 0.065, 3: 0.0605}[decimals]
     hypercube = scale(hypercube, low=-max_shears, high=max_shears)
 
+    # rounding
     hypercube = numpy.round(hypercube, decimals=decimals)
+
+    # adding column for noise style
+    hypercube = numpy.hstack((hypercube, numpy.ones((hypercube.shape[0], 1))))
 
     return hypercube
 
@@ -219,3 +223,39 @@ def adding_cosmos_catalog_galaxies(
     duplicates(matched_features, version)
 
     return lhs_gal
+
+
+def noise_cancel(lhs_img, lhs_gal):
+    transforms = [(1, 1), (-1, 2), (1, 3), (-1, 4)]
+    img_combined = []
+    gal_combined = []
+
+    for sign_ellips, label_noise in transforms:
+        gal_copy = lhs_gal.copy()
+        gal_copy[:, 0:2] *= sign_ellips
+        gal_combined.append(gal_copy)
+
+        lhs_copy = lhs_img.copy()
+        lhs_copy[:, -1] *= label_noise
+        img_combined.append(lhs_copy)
+
+    img_combined = numpy.vstack(img_combined)
+    gal_combined = numpy.vstack(gal_combined)
+
+    return img_combined, gal_combined
+
+
+def divide_for_multiprocess(hc, nb_of_samples, nb_galaxies):
+    # TODO different number of galaxies per image
+    list_nb_gal = [nb_galaxies] * nb_of_samples  # case nb of galaxies constant per image
+
+    nb_of_gal = numpy.array(list_nb_gal)
+    nb_of_gal_to_divide = nb_of_gal.astype(int).tolist()
+
+    start_idx = 0
+    list_samples_loop = []
+    for num in nb_of_gal_to_divide:
+        list_samples_loop.append(hc[start_idx : start_idx + num, :])
+        start_idx += num
+
+    return list_samples_loop

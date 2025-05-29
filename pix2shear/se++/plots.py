@@ -6,7 +6,7 @@ from astropy.io import fits
 from matplotlib import pyplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy import loadtxt
-from pandas import concat, read_csv
+from pandas import DataFrame, concat, read_csv
 from scipy import spatial, stats
 
 
@@ -28,16 +28,6 @@ DIRS = {
     "pisco_euclid_se": DIR_DATASETS / "pisco_euclid_se",
     "pisco_euclid": DIR_DATASETS / "pisco_euclid",
 }
-
-
-def ellips_model(e1_err, e2_err, e1, e2):
-    weight_e1 = 1 / (e1_err**2 + 0.26**2)
-    e1_weighted_mean = numpy.sum(weight_e1 * e1) / numpy.sum(weight_e1)
-
-    weight_e2 = 1 / (e2_err**2 + 0.26**2)
-    e2_weighted_mean = numpy.sum(weight_e2 * e2) / numpy.sum(weight_e2)
-
-    return float(e1_weighted_mean), float(e2_weighted_mean)
 
 
 def tfds_info(style, version, data_dir, split=True):
@@ -74,6 +64,78 @@ def get_match(df_pred, df_true, radius):
     filter_pred = df_pred.iloc[indices_pred].copy()
 
     return filter_pred, filter_truth
+
+
+def compute_by_shear_bin(true_avg, pred, true, true_col, model):
+    # select shear avg
+    bin_label = f"{true_col}_bin"
+
+    # group images/index by shear bins
+    groups = true_avg.groupby(bin_label, observed=False).groups
+
+    res_pred, res_pred_err, res_pred_w_err, res_true, res_residuals = {}, {}, {}, {}, {}
+
+    for interval, idx_list in groups.items():
+        # filter by images
+        filtered_pred = pred[pred["image"].isin(idx_list)]
+        filtered_true = true[true["image"].isin(idx_list)]
+
+        # unweighted true mean
+        mu_true = numpy.mean(filtered_true[f"obs_{model}"])
+
+        # weighted predicted values
+        ellips = filtered_pred[f"{model}_model"]
+        errs = filtered_pred[f"{model}_model_err"]
+        weight = 1.0 / (errs**2 + 0.26**2)
+
+        # mean
+        weight_norm = weight / numpy.sum(weight)
+        mu = numpy.sum(weight_norm * ellips)
+
+        # variance
+        mu2 = numpy.sum(weight_norm * ellips**2)
+        variance = mu2 - mu**2
+
+        # standard error
+        n_eff = numpy.sum(weight) ** 2 / numpy.sum(weight**2)
+        err_pred = numpy.sqrt(variance / n_eff)
+        # err_pred = numpy.sqrt(1.0 / numpy.sum(weight))
+
+        # results
+        res_pred[interval] = mu
+        res_pred_err[interval] = err_pred
+        res_pred_w_err[interval] = 1.0 / err_pred
+        res_true[interval] = mu_true
+        res_residuals[interval] = mu - mu_true
+
+    df = DataFrame(
+        {
+            "pred": res_pred,
+            "err_pred": res_pred_err,
+            "true": res_true,
+            "w_err": res_pred_w_err,
+            "residual": res_residuals,
+        }
+    )
+    df["center"] = [iv.mid for iv in df.index]
+    return df
+
+
+def ellips_model(ellips, ellips_err):
+    # mean
+    weight = 1.0 / (ellips_err**2 + 0.26**2)
+    weight_norm = weight / numpy.sum(weight)
+    mu = numpy.sum(weight_norm * ellips)
+
+    # variance
+    mu2 = numpy.sum(weight_norm * ellips**2)
+    variance = mu2 - mu**2
+
+    # standard error
+    n_eff = numpy.sum(weight) ** 2 / numpy.sum(weight**2)
+    err = numpy.sqrt(variance / n_eff)
+
+    return mu, err
 
 
 # --------------------------------------------------------------------------------------------------
@@ -254,7 +316,7 @@ def x_n_seric(MIN_SERSIC, MAX_SERSIC, mu_x, sigma_x, plot_dir):
     #     prior_density * (max(sersic_vals) - min(sersic_vals)) / max(prior_density)
     # )
 
-    fig, ax1 = pyplot.subplots(figsize=(10, 6))
+    fig, ax1 = pyplot.subplots(figsize=(8, 4))
 
     pyplot.text(
         10.2, MIN_SERSIC, f"{MIN_SERSIC}", va="center", ha="left", fontsize=10, color="gray"
@@ -301,25 +363,23 @@ def case_result(pred_e1, pred_e2, shears1, shears2, number, directory, symbol="g
     poly_g1, cov1 = numpy.polyfit(shears1, diff_pred_g1, 1, cov=True)
     poly_g2, cov2 = numpy.polyfit(shears2, diff_pred_g2, 1, cov=True)
 
-    fig, axes = pyplot.subplots(1, 2, figsize=(14, 5), sharey=True)
+    fig, axes = pyplot.subplots(1, 2, figsize=(12, 5), sharey=True)
     axes = axes.flatten()
 
     lab_1 = (
-        f"e1 : m = {poly_g1[0]:.2e} ± {numpy.sqrt(cov1[0, 0]):.2e}",
-        f"e2 : c = {poly_g1[1]:.2e} ± {numpy.sqrt(cov1[1, 1]):.2e}",
+        f"m = {poly_g1[0]:.2e} ± {numpy.sqrt(cov1[0, 0]):.2e} ; c = {poly_g1[1]:.2e} ± {numpy.sqrt(cov1[1, 1]):.2e}",  # noqa
     )
     lab_2 = (
-        f"e1 : m = {poly_g2[0]:.2e} ± {numpy.sqrt(cov2[0, 0]):.2e}",
-        f"e2 : c = {poly_g2[1]:.2e} ± {numpy.sqrt(cov2[1, 1]):.2e}",
+        f"m = {poly_g2[0]:.2e} ± {numpy.sqrt(cov2[0, 0]):.2e} ; c = {poly_g2[1]:.2e} ± {numpy.sqrt(cov2[1, 1]):.2e}",  # noqa
     )
 
-    axes[0].scatter(shears1, diff_pred_g1, alpha=alpha, color=c1, marker="x", s=s, label=lab_1)
-    axes[0].scatter(shears2, diff_pred_g2, alpha=alpha, color=c2, marker="x", s=s, label=lab_2)
-    axes[0].plot(t, poly_g1[1] + poly_g1[0] * t, color=c1, lw=5)
-    axes[0].plot(t, poly_g2[1] + poly_g2[0] * t, color=c2, lw=5, ls="--")
+    axes[0].scatter(shears1, diff_pred_g1, alpha=alpha, color=c1, marker="x", s=s, label="e1")
+    axes[0].scatter(shears2, diff_pred_g2, alpha=alpha, color=c2, marker="x", s=s, label="e2")
+    axes[0].plot(t, poly_g1[1] + poly_g1[0] * t, color=c1, lw=5, label=lab_1)
+    axes[0].plot(t, poly_g2[1] + poly_g2[0] * t, color=c2, lw=5, ls="--", label=lab_2)
 
-    axes[1].scatter(shears1, pred_e1, alpha=alpha, color=c1, marker="x", s=s)
-    axes[1].scatter(shears2, pred_e2, alpha=alpha, color=c2, marker="o", s=s)
+    axes[1].scatter(shears1, pred_e1, alpha=alpha, color=c1, marker="x", s=s, label="e1")
+    axes[1].scatter(shears2, pred_e2, alpha=alpha, color=c2, marker="o", s=s, label="e2")
     lims = axes[1].get_xlim()
     axes[1].plot(lims, lims, color="black", linestyle="--", linewidth=1, label="y=x")
 
@@ -335,211 +395,94 @@ def case_result(pred_e1, pred_e2, shears1, shears2, number, directory, symbol="g
             ax.set_xlim(-0.35, 0.35)
         ax.set_ylim(-0.35, 0.35)
         ax.set_xlabel(rf"$\{symbol}^{{true}}$")
-        ax.legend()
+        ax.legend(fontsize=9)
 
     fig.suptitle(
         f"{directory.name} : {pred_e1.shape[0]} images with {number} galaxies", fontsize=16
     )
     fig.tight_layout(rect=[0, 0, 1, 0.95])
-    fig.tight_layout()
     fig.savefig(directory, dpi=300)
-
-
-def logged_values(bins, preds, trues, pixel_scale, plot_dir):
-    fig, axes = pyplot.subplots(1, 3, figsize=(9, 3), sharey=True)
-    log = True
-    alpha = 0.2
-
-    axes[0].hist(
-        preds["sersic_model"],
-        alpha=alpha,
-        bins=bins,
-        label=f"predictions {preds['sersic_model'].shape[0]}",
-        log=log,
-    )
-    axes[0].hist(
-        trues["sersic"], alpha=alpha, bins=bins, label=f"truth {trues['sersic'].shape[0]}", log=log
-    )
-    axes[0].set_title("Sersic")
-    axes[0].legend()
-
-    axes[1].hist(
-        preds["mag_model"],
-        alpha=alpha,
-        bins=bins,
-        label=f"predictions {preds['mag_model'].shape[0]}",
-        log=log,
-    )
-    axes[1].hist(
-        trues["mag"], alpha=alpha, bins=bins, label=f"truth {trues['mag'].shape[0]}", log=log
-    )
-    axes[1].set_title("Magnitude")
-    axes[1].legend()
-
-    axes[2].hist(
-        preds["flux_radius"] * pixel_scale,
-        alpha=alpha,
-        bins=bins,
-        label=f"predictions {preds['flux_radius'].shape[0]}",
-        log=log,
-    )
-    axes[2].hist(
-        trues["hlr"], alpha=alpha, bins=bins, label=f"truth {trues['hlr'].shape[0]}", log=log
-    )
-    axes[2].set_title("Half-Light Radius (HLR)")
-    axes[2].legend()
-
-    fig.tight_layout()
-    fig.savefig(plot_dir / "logged_sersic_mag_hlr.pdf", dpi=300)
-    fig.show()
-
-
-def fmf_values(bins, preds, plot_dir, log=False):
-    fig, axes = pyplot.subplots(1, 3, figsize=(9, 3), sharey=True)
-    alpha = 0.2
-
-    axes[0].hist(
-        preds["fmf_reduced_chi_2"], alpha=alpha, bins=bins, label="fmf_reduced_chi_2", log=log
-    )
-    axes[1].hist(preds["fmf_stop_reason"], alpha=alpha, bins=bins, label="fmf_stop_reason", log=log)
-    axes[2].hist(preds["fmf_flags"], alpha=alpha, bins=bins, label="fmf_flags", log=log)
-    for ax in axes.flat:
-        ax.legend()
-
-    fig.tight_layout()
-    fig.savefig(plot_dir / "fmf_values.pdf", dpi=300)
-    fig.show()
 
 
 def histos(
     detections,
-    pred_galaxies_params,
-    true_galaxies_params,
+    preds,
+    trues,
     pred_avg_e1,
     pred_avg_e2,
-    true_images_params,
+    true_avg_e,
     directory,
     pixel_scale,
     bins,
     density=True,
 ):
-    fig, axes = pyplot.subplots(2, 4, figsize=(16, 8))
+    fig, axes = pyplot.subplots(3, 5, figsize=(15, 9))
     alpha = 0.3
 
-    axes[0, 0].hist(
-        pred_avg_e1,
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"predictions {pred_avg_e1.shape[0]}",
-    )
-    axes[0, 0].hist(
-        true_images_params["avg_obs_e1"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"truth {true_images_params['avg_obs_e1'].shape[0]}",
-    )
-    axes[0, 0].set_title("e1")
+    nb_preds = preds["e1_model"].shape[0]
+    nb_trues = trues["obs_e1"].shape[0]
+    label_pred = f"preds : {nb_preds}"
+    label_true = f"trues : {nb_trues}"
 
-    axes[0, 1].hist(
-        pred_avg_e2,
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"predictions {pred_avg_e2.shape[0]}",
-    )
-    axes[0, 1].hist(
-        true_images_params["avg_obs_e2"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"truth {true_images_params['avg_obs_e2'].shape[0]}",
-    )
-    axes[0, 1].set_title("e2")
+    axes[0, 0].hist(pred_avg_e1, alpha=alpha, bins=bins, density=density, label="preds")
+    axes[0, 0].hist(true_avg_e["avg_obs_e1"], alpha=alpha, bins=bins, density=density, label="true")
+    axes[0, 0].set_title(f"avg e1 : {pred_avg_e1.shape[0]}")
 
-    axes[0, 2].hist(
-        pred_galaxies_params["e1_model"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"predictions {pred_galaxies_params['e1_model'].shape[0]}",
-    )
-    axes[0, 2].hist(
-        true_galaxies_params["obs_e1"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"truth {true_galaxies_params['obs_e1'].shape[0]}",
-    )
+    axes[0, 1].hist(pred_avg_e2, alpha=alpha, bins=bins, density=density, label="preds")
+    axes[0, 1].hist(true_avg_e["avg_obs_e2"], alpha=alpha, bins=bins, density=density, label="true")
+    axes[0, 1].set_title(f"avg e2 : {pred_avg_e1.shape[0]}")
+
+    axes[0, 2].hist(preds["e1_model"], alpha=alpha, bins=bins, density=density, label=label_pred)
+    axes[0, 2].hist(trues["obs_e1"], alpha=alpha, bins=bins, density=density, label=label_true)
     axes[0, 2].set_title("e1")
 
-    axes[0, 3].hist(
-        pred_galaxies_params["e2_model"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"predictions {pred_galaxies_params['e2_model'].shape[0]}",
-    )
-    axes[0, 3].hist(
-        true_galaxies_params["obs_e2"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"truth {true_galaxies_params['obs_e2'].shape[0]}",
-    )
+    axes[0, 3].hist(preds["e2_model"], alpha=alpha, bins=bins, density=density, label=label_pred)
+    axes[0, 3].hist(trues["obs_e2"], alpha=alpha, bins=bins, density=density, label=label_true)
     axes[0, 3].set_title("e2")
 
-    axes[1, 0].hist(
-        pred_galaxies_params["flux_radius"] * pixel_scale,
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"predictions {pred_galaxies_params['flux_radius'].shape[0]}",
-    )
-    axes[1, 0].hist(
-        true_galaxies_params["hlr"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"truth {true_galaxies_params['hlr'].shape[0]}",
-    )
-    axes[1, 0].set_title(f"hlr with pixel scale = {pixel_scale}")
+    axes[0, 4].hist(detections, bins=bins, label=f"detections {numpy.sum(detections)}")
+    axes[0, 4].set_title("galaxies")
+
+    new_flux = preds["flux_radius"] * pixel_scale
+    axes[1, 0].hist(new_flux, alpha=alpha, bins=bins, density=density, label=label_pred)
+    axes[1, 0].hist(trues["hlr"], alpha=alpha, bins=bins, density=density, label=label_true)
+    axes[1, 0].set_title("hlr")
 
     axes[1, 1].hist(
-        pred_galaxies_params["sersic_model"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"predictions {pred_galaxies_params['sersic_model'].shape[0]}",
+        preds["sersic_model"], alpha=alpha, bins=bins, density=density, label=label_pred
     )
-    axes[1, 1].hist(
-        true_galaxies_params["sersic"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"truth {true_galaxies_params['sersic'].shape[0]}",
-    )
+    axes[1, 1].hist(trues["sersic"], alpha=alpha, bins=bins, density=density, label=label_true)
     axes[1, 1].set_title("sersic")
 
-    axes[1, 2].hist(
-        pred_galaxies_params["mag_model"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"predictions {pred_galaxies_params['mag_model'].shape[0]}",
-    )
-    axes[1, 2].hist(
-        true_galaxies_params["mag"],
-        alpha=alpha,
-        bins=bins,
-        density=density,
-        label=f"truth {true_galaxies_params['mag'].shape[0]}",
-    )
+    axes[1, 2].hist(preds["mag_model"], alpha=alpha, bins=bins, density=density, label=label_pred)
+    axes[1, 2].hist(trues["mag"], alpha=alpha, bins=bins, density=density, label=label_true)
     axes[1, 2].set_title("mag")
 
-    axes[1, 3].hist(detections, bins=bins, label=f"detections {numpy.sum(detections)}")
-    axes[1, 3].set_title("galaxies")
+    axes[1, 3].hist(preds["e1_model_err"], alpha=alpha, bins=10, label=label_pred, log=True)
+    axes[1, 3].hist(preds["e2_model_err"], alpha=alpha, bins=10, label=label_true, log=True)
+    axes[1, 3].set_title("e model err")
+
+    axes[1, 4].hist(preds["sersic_model"], alpha=alpha, bins=bins, label=label_pred, log=True)
+    axes[1, 4].hist(trues["sersic"], alpha=alpha, bins=bins, label=label_true, log=True)
+    axes[1, 4].set_title("logged sersic")
+
+    axes[2, 0].hist(preds["mag_model"], alpha=alpha, bins=bins, label=label_pred, log=True)
+    axes[2, 0].hist(trues["mag"], alpha=alpha, bins=bins, label=label_true, log=True)
+    axes[2, 0].set_title("logged magnitude")
+
+    axes[2, 1].hist(
+        preds["flux_radius"] * pixel_scale, alpha=alpha, bins=bins, label=label_pred, log=True
+    )
+    axes[2, 1].hist(trues["hlr"], alpha=alpha, bins=bins, label=label_true, log=True)
+    axes[2, 1].set_title("logged hlr")
+
+    axes[2, 2].hist(
+        preds["fmf_reduced_chi_2"], alpha=alpha, bins=bins, label="fmf_reduced_chi_2", log=True
+    )
+    axes[2, 3].hist(
+        preds["fmf_stop_reason"], alpha=alpha, bins=bins, label="fmf_stop_reason", log=True
+    )
+    axes[2, 4].hist(preds["fmf_flags"], alpha=alpha, bins=bins, label="fmf_flags", log=True)
 
     for ax in axes.ravel():
         ax.legend()
@@ -556,34 +499,186 @@ def background(names):
     pyplot.colorbar(im)
 
 
-def case_result_param(directory, pred, true, symbol, err=0):
-    pred = numpy.array(pred)
-    true = numpy.array(true)
-    err = numpy.array(err)
-    s = 1
+def result_e(directory, slice_pred, slice_truth, err=0):
+    lim_min = min(slice_truth["obs_e1"].min(), slice_pred["e1_model"].min())
+    lim_max = max(slice_truth["obs_e1"].max(), slice_pred["e1_model"].max())
+    lim_1 = max(abs(lim_min), abs(lim_max))
 
-    fig, axs = pyplot.subplots(1, 2, figsize=(8, 4))
+    lim_min = min(slice_truth["obs_e2"].min(), slice_pred["e2_model"].min())
+    lim_max = max(slice_truth["obs_e2"].max(), slice_pred["e2_model"].max())
+    lim_2 = max(abs(lim_min), abs(lim_max))
 
-    axs[0].scatter(true, pred - true, s=2, alpha=0.5)
-    axs[0].axhline(0, color="black", linestyle="--")
-    axs[0].set_xlabel("True")
-    axs[0].set_ylabel("Pred - True")
-    axs[0].set_title(f"Residuals of {symbol}")
+    fig, axs = pyplot.subplots(2, 2, figsize=(10, 10))
 
-    if symbol == "hlr":
-        axs[1].scatter(true, pred, marker="x", s=s)
-    else:
-        axs[1].errorbar(true, pred, yerr=err, fmt="x", capsize=2, markersize=3, alpha=0.5)
+    t_1 = numpy.linspace(slice_truth["obs_e1"].min(), slice_truth["obs_e1"].max())
+    t_2 = numpy.linspace(slice_truth["obs_e2"].min(), slice_truth["obs_e2"].max())
 
-    lim_min = min(pred.min(), true.min())
-    lim_max = max(pred.max(), true.max())
-    axs[1].plot([lim_min, lim_max], [lim_min, lim_max], "k--", zorder=10)
-    axs[1].set_xlim(lim_min, lim_max)
-    axs[1].set_ylim(lim_min, lim_max)
-    axs[1].set_xlabel("True")
-    axs[1].set_ylabel("Pred")
-    axs[1].set_title(f"Predicted vs True {symbol}")
+    nb_mags = numpy.unique(slice_truth["mag_bin"]).shape[0]
+    cmap = pyplot.get_cmap("tab20")
+    colors = [cmap(i / nb_mags) for i in range(nb_mags)]
+
+    for idx, mag_bin in enumerate(numpy.unique(slice_truth["mag_bin"])):
+        MASK_BIN_MAG = slice_truth["mag_bin"] == mag_bin
+
+        pred_mag_1 = slice_pred[MASK_BIN_MAG]["e1_model"].values
+        true_mag_1 = slice_truth[MASK_BIN_MAG]["obs_e1"].values
+
+        diff_mag_1 = pred_mag_1 - true_mag_1
+        poly_g, _ = numpy.polyfit(true_mag_1, diff_mag_1, 1, cov=True)
+        axs[0, 0].plot(
+            t_1,
+            poly_g[1] + poly_g[0] * t_1,
+            color=colors[idx],
+            lw=5,
+            ls="--",
+            label=f"mag {idx + 1}",
+        )
+        axs[0, 0].scatter(true_mag_1, diff_mag_1, s=5, alpha=0.1, color=colors[idx])
+        axs[0, 0].axhline(0, color="black", linestyle="--")
+        axs[0, 0].set_xlabel("True")
+        axs[0, 0].set_ylabel("Pred - True")
+        axs[0, 0].set_title("Residuals of e1")
+        axs[0, 0].legend()
+
+        axs[0, 1].errorbar(true_mag_1, pred_mag_1, yerr=err, fmt="x", alpha=0.25, color=colors[idx])
+        axs[0, 1].plot([-lim_1, lim_1], [-lim_1, lim_1], "k--", zorder=10)
+        axs[0, 1].set_xlim(-lim_1, lim_1)
+        axs[0, 1].set_ylim(-lim_1, lim_1)
+        axs[0, 1].set_xlabel("True")
+        axs[0, 1].set_ylabel("Pred")
+        axs[0, 1].set_title("Predicted vs True e1")
+
+        pred_mag_2 = slice_pred[MASK_BIN_MAG]["e2_model"].values
+        true_mag_2 = slice_truth[MASK_BIN_MAG]["obs_e2"].values
+
+        diff_mag_2 = pred_mag_2 - true_mag_2
+        poly_g_2, _ = numpy.polyfit(true_mag_2, diff_mag_2, 1, cov=True)
+        axs[1, 0].plot(t_2, poly_g_2[1] + poly_g_2[0] * t_2, color=colors[idx], lw=5, ls="--")
+        axs[1, 0].scatter(true_mag_2, diff_mag_2, s=5, alpha=0.1, color=colors[idx])
+        axs[1, 0].axhline(0, color="black", linestyle="--")
+        axs[1, 0].set_xlabel("True")
+        axs[1, 0].set_ylabel("Pred - True")
+        axs[1, 0].set_title("Residuals of e2")
+
+        axs[1, 1].errorbar(true_mag_2, pred_mag_2, yerr=err, fmt="x", alpha=0.25, color=colors[idx])
+        axs[1, 1].plot([-lim_2, lim_2], [-lim_2, lim_2], "k--", zorder=10)
+        axs[1, 1].set_xlim(-lim_2, lim_2)
+        axs[1, 1].set_ylim(-lim_2, lim_2)
+        axs[1, 1].set_xlabel("True")
+        axs[1, 1].set_ylabel("Pred")
+        axs[1, 1].set_title("Predicted vs True e2")
 
     fig.tight_layout()
-    fig.savefig(directory / f"param_{symbol}.pdf", dpi=300)
+    fig.savefig(directory / "res_ellips.pdf", dpi=300)
+    fig.show()
+
+
+def case_result_param(directory, pred, truth, PIXEL_SCALE):
+    fig, axs = pyplot.subplots(2, 5, figsize=(20, 8))
+
+    params = [
+        ("sersic", "sersic_model"),
+        ("mag", "mag_model"),
+        ("hlr", "flux_radius"),
+        ("x", "x_model"),
+        ("y", "y_model"),
+    ]
+
+    for i, (true_key, pred_key) in enumerate(params):
+        y_pred = pred[pred_key]
+        if pred_key == "flux_radius":
+            y_pred *= PIXEL_SCALE
+        y_true = truth[true_key]
+
+        axs[0, i].scatter(y_true, y_pred - y_true, s=2, alpha=0.5)
+        axs[0, i].axhline(0, color="black", linestyle="--")
+        axs[0, i].set_xlabel("True")
+        axs[0, i].set_ylabel("Pred - True")
+        axs[0, i].set_title(f"Residuals of {true_key}")
+
+        # axs[1, i].errorbar(y_true, y_pred, yerr=err, fmt="x", capsize=2, markersize=3, alpha=0.5)
+        axs[1, i].errorbar(y_true, y_pred, fmt="x", capsize=2, markersize=3, alpha=0.5)
+
+        lim_min = min(y_pred.min(), y_true.min())
+        lim_max = max(y_pred.max(), y_true.max())
+        axs[1, i].plot([lim_min, lim_max], [lim_min, lim_max], "k--", zorder=10)
+        axs[1, i].set_xlim(lim_min, lim_max)
+        axs[1, i].set_ylim(lim_min, lim_max)
+        axs[1, i].set_xlabel("True")
+        axs[1, i].set_ylabel("Pred")
+
+    fig.tight_layout()
+    fig.savefig(directory / "res_params_galaxies.pdf", dpi=300)
+    fig.show()
+
+
+def total_mean_per_shear_bin(directory, df_e1, df_e2):
+    fig, axes = pyplot.subplots(1, 2, figsize=(12, 5), sharey=True)
+    axes = axes.flatten()
+
+    for i, df in enumerate([df_e1, df_e2]):
+        x = df["true"]
+        y = df["residual"]
+        y_err = df["err_pred"]
+        w = df["w_err"]
+
+        (m, c), cov = numpy.polyfit(x, y, deg=1, w=w, cov=True)
+        sigma_m, sigma_c = numpy.sqrt(numpy.diag(cov))
+
+        t = numpy.linspace(-0.05, 0.05)
+        y_fit = m * t + c
+        sigma_fit = numpy.sqrt(t**2 * cov[0, 0] + cov[1, 1] + 2 * t * cov[0, 1])
+
+        label = f"m = {m:.2e} ± {sigma_m:.2e} / c = {c:.2e} ± {sigma_c:.2e}"
+
+        axes[i].errorbar(x, y, yerr=y_err, fmt="o", capsize=3, label="Data")
+        axes[i].plot(t, y_fit, label=label)
+        axes[i].fill_between(
+            t, y_fit - sigma_fit, y_fit + sigma_fit, alpha=0.3, label="uncertainty"
+        )
+        axes[i].set_xlabel("Shear bin center")
+        axes[i].set_ylabel("predicted - true")
+        axes[i].set_title(f"Residuals of total mean e{i + 1}")
+        axes[i].set_ylim(-0.005, 0.005)
+        axes[i].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
+        axes[i].legend(fontsize=9)
+
+    fig.tight_layout()
+    fig.savefig(directory / "total_mean.pdf", dpi=300)
+    fig.show()
+
+
+def total_avg(directory, pred_avg, true_avg):
+    fig, axes = pyplot.subplots(1, 2, figsize=(12, 5), sharey=False)
+    axes = axes.flatten()
+
+    for i in range(2):
+        x = true_avg[f"avg_g{i + 1}"]
+        y = pred_avg[f"e{i + 1}"] - x
+        y_err = pred_avg[f"e{i + 1}_err"]
+        w = 1.0 / y_err
+
+        (m, c), cov = numpy.polyfit(x, y, deg=1, w=w, cov=True)
+        sigma_m, sigma_c = numpy.sqrt(numpy.diag(cov))
+
+        t = numpy.linspace(-0.05, 0.05)
+        y_fit = m * t + c
+        sigma_fit = numpy.sqrt(t**2 * cov[0, 0] + cov[1, 1] + 2 * t * cov[0, 1])
+
+        label = f"m = {m:.2e} ± {sigma_m:.2e} / c = {c:.2e} ± {sigma_c:.2e}"
+
+        axes[0].errorbar(x, y, yerr=y_err, fmt="o", ms=2, capsize=3, label="Data", alpha=0.1)
+        axes[1].plot(t, y_fit, label=label, zorder=10)
+        axes[1].fill_between(
+            t, y_fit - sigma_fit, y_fit + sigma_fit, alpha=0.3, label="uncertainty"
+        )
+        axes[i].set_xlabel("True shear")
+        axes[i].set_ylabel("predicted - true")
+        # axes[i].set_title(f"Residuals of total mean e{i + 1}")
+        # axes[i].set_ylim(-0.005, 0.005)
+        axes[i].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
+        axes[i].legend(fontsize=9)
+
+    fig.tight_layout()
+    fig.savefig(directory / "total_avg.pdf", dpi=300)
     fig.show()

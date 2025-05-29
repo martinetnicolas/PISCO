@@ -3,16 +3,14 @@ PIX2SHEAR_DIR=/net/GECO/pisco/PIX2SHEAR
 PSF_DIR=/net/GECO/pisco/PIX2SHEAR/DATASETS/psf_se
 
 ## USER INPUT
-VERSION=0.0.8
-MAX_PARALLEL_JOBS=115   # max cc LAM : 125
+VERSION=0.0.4
+MAX_PARALLEL_JOBS=120   # max cc LAM : 125
 NB_CHECK_IMAGES=100     # number of images segmentation/residual/fitting/background
-ASSOC=0                 # with associated locations (0 or 1)
+ASSOC=1                 # with associated locations (0 or 1)
 ENTIRE_DATASET=True
 PSF="psf_style-airy_size-41_pixelscale-0.1.fits"
-PSF_SAMPLING=1
 SAMPLING_FACTOR=1
 # PSF="psf_style-airy_size-81_pixelscale-0.05.fits"
-# PSF_SAMPLING=0.5
 # SAMPLING_FACTOR=2
 THRESHOLD=1.75
 MIN_NB_PIXEL=6
@@ -73,4 +71,4 @@ sbatch  -p short \
         --job-name=SE++_PISCO \
         --mail-type=FAIL \
         --mail-user=romain.brunet@lam.fr \
-        parallel_se++.sh $DATATEST_DIR $RESULTS_DIR $IMAGES_DIR $CATALOG_DIR $NB_CHECK_IMAGES $ASSOC $PSF_DIR/$PSF $PSF_SAMPLING $SAMPLING_FACTOR $THRESHOLD $MIN_NB_PIXEL
+        parallel_se++.sh $DATATEST_DIR $RESULTS_DIR $IMAGES_DIR $CATALOG_DIR $NB_CHECK_IMAGES $ASSOC $PSF_DIR/$PSF $SAMPLING_FACTOR $THRESHOLD $MIN_NB_PIXEL

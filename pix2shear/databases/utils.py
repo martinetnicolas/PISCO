@@ -181,6 +181,17 @@ def slice_csv(file_path, nb_total):
     return read_csv(file_path, sep=",", skiprows=0)[:nb_total]
 
 
+def check_sampling(dir):
+    sampling = []
+    for i in range(1, 1001):
+        filename = dir / f"{i:06d}_simu.fits"
+        with io.fits.open(filename) as hdul:
+            header = hdul[0].header
+            sampling.append(header.get("SAMPLING"))
+
+    return numpy.unique(numpy.array(sampling))
+
+
 def generate_seed():
     return (int(time.time() * 1e6) ^ random.getrandbits(32)) % (2**32 - 1)
 
