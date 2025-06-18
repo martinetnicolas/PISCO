@@ -7,7 +7,10 @@ from matplotlib import pyplot
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy import loadtxt
 from pandas import DataFrame, concat, read_csv
-from scipy import spatial, stats
+from scipy import spatial, stats  # , optimize
+from tqdm import tqdm
+
+DPI = 200
 
 
 def search_folder(name):
@@ -29,6 +32,25 @@ DIRS = {
     "pisco_euclid": DIR_DATASETS / "pisco_euclid",
 }
 
+TO_DROP = [
+    "pixel_boundaries_min_x",
+    "pixel_boundaries_min_y",
+    "pixel_boundaries_max_x",
+    "pixel_boundaries_max_y",
+    "fmf_iterations",
+    "fmf_duration",
+    "fmf_meta_iterations",
+    "auto_mag",
+    "auto_mag_err",
+    "auto_flags",
+    "auto_flux",
+    "auto_flux_err",
+    "x_model_err",
+    "y_model_err",
+    "flux_model",
+    "flux_model_err",
+]
+
 
 def tfds_info(style, version, data_dir, split=True):
     if split:
@@ -44,6 +66,62 @@ def tfds_info(style, version, data_dir, split=True):
 
 def slice_csv(file_path, nb_total):
     return read_csv(file_path, sep=",", skiprows=0)[:nb_total]
+
+
+def filtering(pred_avg, true_avg, detections, pred_gal, true_gal, mask):
+    images_mask = mask[mask].index.to_numpy()
+
+    filter_pred_avg = pred_avg[mask]
+    filter_true_avg = true_avg[mask]
+    filter_detections = detections[mask]
+
+    filter_pred_gal = pred_gal[pred_gal["image"].isin(images_mask)]
+    filter_true_gal = true_gal[true_gal["image"].isin(images_mask)]
+
+    return filter_pred_avg, filter_true_avg, filter_detections, filter_pred_gal, filter_true_gal
+
+
+def load_truth(dataset):
+    NB_TOTAL = dataset.cardinality().numpy()
+    all_params_dataset = dataset.map(
+        lambda x: {key: x[key] for key in ["avg_g", "avg_obs_e", "gal_params", "keys"]}
+    )
+
+    all_img_params, all_gal_params = [], []
+    for nb_image, example in tqdm(enumerate(tfds.as_numpy(all_params_dataset)), total=NB_TOTAL):
+        df_gal, df_img = create_dfs(example, nb_image)
+        all_img_params.append(df_img)
+        all_gal_params.append(df_gal)
+
+    true_avg = concat(all_img_params, ignore_index=True)
+    true_gal = concat(all_gal_params, ignore_index=True)
+
+    return true_avg, true_gal
+
+
+def create_dfs(example, nb_image):
+    gal_params = example["gal_params"]
+    avg_g = example["avg_g"]
+    avg_obs_e = example["avg_obs_e"]
+    snc = example["keys"][1]
+    df_gal = DataFrame(
+        gal_params.T,
+        columns=["int_e1", "int_e2", "obs_e1", "obs_e2", "x", "y", "mag", "hlr", "sersic"],
+    )
+    df_gal["image"] = nb_image
+    df_gal["snc"] = snc
+
+    dict_img = {
+        "avg_g1": avg_g[0],
+        "avg_g2": avg_g[1],
+        "avg_obs_e1": avg_obs_e[0],
+        "avg_obs_e2": avg_obs_e[1],
+        "snc": snc,
+        "image": nb_image,
+    }
+    df_img = DataFrame([dict_img])
+
+    return df_gal, df_img
 
 
 def write_fits(array, path):
@@ -64,78 +142,6 @@ def get_match(df_pred, df_true, radius):
     filter_pred = df_pred.iloc[indices_pred].copy()
 
     return filter_pred, filter_truth
-
-
-def compute_by_shear_bin(true_avg, pred, true, true_col, model):
-    # select shear avg
-    bin_label = f"{true_col}_bin"
-
-    # group images/index by shear bins
-    groups = true_avg.groupby(bin_label, observed=False).groups
-
-    res_pred, res_pred_err, res_pred_w_err, res_true, res_residuals = {}, {}, {}, {}, {}
-
-    for interval, idx_list in groups.items():
-        # filter by images
-        filtered_pred = pred[pred["image"].isin(idx_list)]
-        filtered_true = true[true["image"].isin(idx_list)]
-
-        # unweighted true mean
-        mu_true = numpy.mean(filtered_true[f"obs_{model}"])
-
-        # weighted predicted values
-        ellips = filtered_pred[f"{model}_model"]
-        errs = filtered_pred[f"{model}_model_err"]
-        weight = 1.0 / (errs**2 + 0.26**2)
-
-        # mean
-        weight_norm = weight / numpy.sum(weight)
-        mu = numpy.sum(weight_norm * ellips)
-
-        # variance
-        mu2 = numpy.sum(weight_norm * ellips**2)
-        variance = mu2 - mu**2
-
-        # standard error
-        n_eff = numpy.sum(weight) ** 2 / numpy.sum(weight**2)
-        err_pred = numpy.sqrt(variance / n_eff)
-        # err_pred = numpy.sqrt(1.0 / numpy.sum(weight))
-
-        # results
-        res_pred[interval] = mu
-        res_pred_err[interval] = err_pred
-        res_pred_w_err[interval] = 1.0 / err_pred
-        res_true[interval] = mu_true
-        res_residuals[interval] = mu - mu_true
-
-    df = DataFrame(
-        {
-            "pred": res_pred,
-            "err_pred": res_pred_err,
-            "true": res_true,
-            "w_err": res_pred_w_err,
-            "residual": res_residuals,
-        }
-    )
-    df["center"] = [iv.mid for iv in df.index]
-    return df
-
-
-def ellips_model(ellips, ellips_err):
-    # mean
-    weight = 1.0 / (ellips_err**2 + 0.26**2)
-    weight_norm = weight / numpy.sum(weight)
-    mu = numpy.sum(weight_norm * ellips)
-
-    # variance
-    mu2 = numpy.sum(weight_norm * ellips**2)
-    variance = mu2 - mu**2
-
-    # standard error
-    n_eff = numpy.sum(weight) ** 2 / numpy.sum(weight**2)
-    err = numpy.sqrt(variance / n_eff)
-
-    return mu, err
 
 
 # --------------------------------------------------------------------------------------------------
@@ -183,7 +189,7 @@ def image_fitting(dataset_dir, images_dir, choice, plots_dir, transformed=False)
     name_image = dataset_dir / choice
     name_fitting = images_dir / f"fitting_{choice}_1"
 
-    assoc = loadtxt(f"{name_image}_assoc.txt")
+    # assoc = loadtxt(f"{name_image}_assoc.txt")
     image = func(fits.open(f"{name_image}.fits")[0].data.astype(numpy.float32))
     fitting = func(fits.open(f"{name_fitting}.fits")[0].data.astype(numpy.float32))
     extra = fits.open(f"{name_extra}.fits")[0].data.astype(numpy.float32)
@@ -201,8 +207,8 @@ def image_fitting(dataset_dir, images_dir, choice, plots_dir, transformed=False)
 
     im3 = axes[2].imshow(extra, cmap="gray")
     axes[2].set_title(title_extra)
-    if not transformed:
-        axes[2].scatter(assoc[:, 0], assoc[:, 1], color="red", marker="o", s=2, label="assoc")
+    # if not transformed:
+    #     axes[2].scatter(assoc[:, 0], assoc[:, 1], color="red", marker="o", s=2, label="assoc")
 
     for ax, img in zip(axes.flat, [im1, im2, im3]):
         divider = make_axes_locatable(ax)
@@ -212,7 +218,7 @@ def image_fitting(dataset_dir, images_dir, choice, plots_dir, transformed=False)
 
     fig.tight_layout()
     fig.show()
-    fig.savefig(plots_dir / f"test_fitting{title}.pdf", dpi=300)
+    fig.savefig(plots_dir / f"test_fitting{title}.pdf", dpi=DPI)
 
 
 def residuals(datasets_dir, images_dir, choice, plot_dir, zoom_size=20, num_ticks=5):
@@ -252,7 +258,7 @@ def residuals(datasets_dir, images_dir, choice, plot_dir, zoom_size=20, num_tick
 
     fig.suptitle("residuals", fontsize=16)
     fig.tight_layout()
-    fig.savefig(plot_dir / "test_residuals.pdf", dpi=300)
+    fig.savefig(plot_dir / "test_residuals.pdf", dpi=DPI)
     fig.show()
 
 
@@ -302,7 +308,7 @@ def vignettes(catalog_dir, images_dir, choice, plots_dir):
     )
     fig.tight_layout()
     fig.show()
-    fig.savefig(plots_dir / "test_vignettes.pdf", dpi=300)
+    fig.savefig(plots_dir / "test_vignettes.pdf", dpi=DPI)
 
 
 def x_n_seric(MIN_SERSIC, MAX_SERSIC, mu_x, sigma_x, plot_dir):
@@ -408,15 +414,14 @@ def histos(
     detections,
     preds,
     trues,
-    pred_avg_e1,
-    pred_avg_e2,
-    true_avg_e,
+    pred_avg,
+    true_avg,
     directory,
     pixel_scale,
     bins,
     density=True,
 ):
-    fig, axes = pyplot.subplots(3, 5, figsize=(15, 9))
+    fig, axes = pyplot.subplots(4, 4, figsize=(12, 12))
     alpha = 0.3
 
     nb_preds = preds["e1_model"].shape[0]
@@ -424,70 +429,74 @@ def histos(
     label_pred = f"preds : {nb_preds}"
     label_true = f"trues : {nb_trues}"
 
-    axes[0, 0].hist(pred_avg_e1, alpha=alpha, bins=bins, density=density, label="preds")
-    axes[0, 0].hist(true_avg_e["avg_obs_e1"], alpha=alpha, bins=bins, density=density, label="true")
-    axes[0, 0].set_title(f"avg e1 : {pred_avg_e1.shape[0]}")
+    axes[0, 0].hist(pred_avg["avg_obs_e1"], alpha=alpha, bins=bins, density=density, label="preds")
+    axes[0, 0].hist(true_avg["avg_obs_e1"], alpha=alpha, bins=bins, density=density, label="true")
+    axes[0, 0].set_title(f"avg e1 : {pred_avg['avg_obs_e1'].shape[0]}")
 
-    axes[0, 1].hist(pred_avg_e2, alpha=alpha, bins=bins, density=density, label="preds")
-    axes[0, 1].hist(true_avg_e["avg_obs_e2"], alpha=alpha, bins=bins, density=density, label="true")
-    axes[0, 1].set_title(f"avg e2 : {pred_avg_e1.shape[0]}")
+    axes[0, 1].hist(pred_avg["avg_obs_e2"], alpha=alpha, bins=bins, density=density, label="preds")
+    axes[0, 1].hist(true_avg["avg_obs_e2"], alpha=alpha, bins=bins, density=density, label="true")
+    axes[0, 1].set_title(f"avg e2 : {pred_avg['avg_obs_e2'].shape[0]}")
 
-    axes[0, 2].hist(preds["e1_model"], alpha=alpha, bins=bins, density=density, label=label_pred)
-    axes[0, 2].hist(trues["obs_e1"], alpha=alpha, bins=bins, density=density, label=label_true)
-    axes[0, 2].set_title("e1")
+    axes[0, 2].hist(pred_avg["avg_obs_e1_err"], alpha=alpha, bins=10, label="e1", log=False)
+    axes[0, 2].hist(pred_avg["avg_obs_e2_err"], alpha=alpha, bins=10, label="e2", log=False)
+    axes[0, 2].set_title("avg e model err")
 
-    axes[0, 3].hist(preds["e2_model"], alpha=alpha, bins=bins, density=density, label=label_pred)
-    axes[0, 3].hist(trues["obs_e2"], alpha=alpha, bins=bins, density=density, label=label_true)
-    axes[0, 3].set_title("e2")
+    axes[1, 0].hist(preds["e1_model"], alpha=alpha, bins=bins, density=density, label=label_pred)
+    axes[1, 0].hist(trues["obs_e1"], alpha=alpha, bins=bins, density=density, label=label_true)
+    axes[1, 0].set_title("e1")
 
-    axes[0, 4].hist(detections, bins=bins, label=f"detections {numpy.sum(detections)}")
-    axes[0, 4].set_title("galaxies")
+    axes[1, 1].hist(preds["e2_model"], alpha=alpha, bins=bins, density=density, label=label_pred)
+    axes[1, 1].hist(trues["obs_e2"], alpha=alpha, bins=bins, density=density, label=label_true)
+    axes[1, 1].set_title("e2")
+
+    axes[1, 2].hist(preds["e1_model_err"], alpha=alpha, bins=10, label="e1", log=True)
+    axes[1, 2].hist(preds["e2_model_err"], alpha=alpha, bins=10, label="e2", log=True)
+    axes[1, 2].set_title("e model err")
 
     new_flux = preds["flux_radius"] * pixel_scale
-    axes[1, 0].hist(new_flux, alpha=alpha, bins=bins, density=density, label=label_pred)
-    axes[1, 0].hist(trues["hlr"], alpha=alpha, bins=bins, density=density, label=label_true)
-    axes[1, 0].set_title("hlr")
-
-    axes[1, 1].hist(
-        preds["sersic_model"], alpha=alpha, bins=bins, density=density, label=label_pred
-    )
-    axes[1, 1].hist(trues["sersic"], alpha=alpha, bins=bins, density=density, label=label_true)
-    axes[1, 1].set_title("sersic")
-
-    axes[1, 2].hist(preds["mag_model"], alpha=alpha, bins=bins, density=density, label=label_pred)
-    axes[1, 2].hist(trues["mag"], alpha=alpha, bins=bins, density=density, label=label_true)
-    axes[1, 2].set_title("mag")
-
-    axes[1, 3].hist(preds["e1_model_err"], alpha=alpha, bins=10, label=label_pred, log=True)
-    axes[1, 3].hist(preds["e2_model_err"], alpha=alpha, bins=10, label=label_true, log=True)
-    axes[1, 3].set_title("e model err")
-
-    axes[1, 4].hist(preds["sersic_model"], alpha=alpha, bins=bins, label=label_pred, log=True)
-    axes[1, 4].hist(trues["sersic"], alpha=alpha, bins=bins, label=label_true, log=True)
-    axes[1, 4].set_title("logged sersic")
-
-    axes[2, 0].hist(preds["mag_model"], alpha=alpha, bins=bins, label=label_pred, log=True)
-    axes[2, 0].hist(trues["mag"], alpha=alpha, bins=bins, label=label_true, log=True)
-    axes[2, 0].set_title("logged magnitude")
+    axes[2, 0].hist(new_flux, alpha=alpha, bins=bins, density=density, label=label_pred)
+    axes[2, 0].hist(trues["hlr"], alpha=alpha, bins=bins, density=density, label=label_true)
+    axes[2, 0].set_title("hlr")
 
     axes[2, 1].hist(
+        preds["sersic_model"], alpha=alpha, bins=bins, density=density, label=label_pred
+    )
+    axes[2, 1].hist(trues["sersic"], alpha=alpha, bins=bins, density=density, label=label_true)
+    axes[2, 1].set_title("sersic")
+
+    axes[2, 2].hist(preds["mag_model"], alpha=alpha, bins=bins, density=density, label=label_pred)
+    axes[2, 2].hist(trues["mag"], alpha=alpha, bins=bins, density=density, label=label_true)
+    axes[2, 2].set_title("mag")
+
+    axes[3, 0].hist(
         preds["flux_radius"] * pixel_scale, alpha=alpha, bins=bins, label=label_pred, log=True
     )
-    axes[2, 1].hist(trues["hlr"], alpha=alpha, bins=bins, label=label_true, log=True)
-    axes[2, 1].set_title("logged hlr")
+    axes[3, 0].hist(trues["hlr"], alpha=alpha, bins=bins, label=label_true, log=True)
+    axes[3, 0].set_title("logged hlr")
 
-    axes[2, 2].hist(
+    axes[3, 1].hist(preds["sersic_model"], alpha=alpha, bins=bins, label=label_pred, log=True)
+    axes[3, 1].hist(trues["sersic"], alpha=alpha, bins=bins, label=label_true, log=True)
+    axes[3, 1].set_title("logged sersic")
+
+    axes[3, 2].hist(preds["mag_model"], alpha=alpha, bins=bins, label=label_pred, log=True)
+    axes[3, 2].hist(trues["mag"], alpha=alpha, bins=bins, label=label_true, log=True)
+    axes[3, 2].set_title("logged magnitude")
+
+    axes[0, 3].hist(detections, bins=bins, label=f"detections {numpy.sum(detections)}")
+    axes[0, 3].set_title("galaxies")
+
+    axes[1, 3].hist(
         preds["fmf_reduced_chi_2"], alpha=alpha, bins=bins, label="fmf_reduced_chi_2", log=True
     )
     axes[2, 3].hist(
         preds["fmf_stop_reason"], alpha=alpha, bins=bins, label="fmf_stop_reason", log=True
     )
-    axes[2, 4].hist(preds["fmf_flags"], alpha=alpha, bins=bins, label="fmf_flags", log=True)
+    axes[3, 3].hist(preds["fmf_flags"], alpha=alpha, bins=bins, label="fmf_flags", log=True)
 
     for ax in axes.ravel():
         ax.legend()
     fig.tight_layout()
-    fig.savefig(directory / "histos.pdf", dpi=300)
+    fig.savefig(directory / "histos.pdf", dpi=DPI)
     fig.show()
 
 
@@ -500,18 +509,18 @@ def background(names):
 
 
 def result_e(directory, slice_pred, slice_truth, err=0):
-    lim_min = min(slice_truth["obs_e1"].min(), slice_pred["e1_model"].min())
-    lim_max = max(slice_truth["obs_e1"].max(), slice_pred["e1_model"].max())
+    lim_min = min(slice_truth["e1_model"].min(), slice_pred["e1_model"].min())
+    lim_max = max(slice_truth["e1_model"].max(), slice_pred["e1_model"].max())
     lim_1 = max(abs(lim_min), abs(lim_max))
 
-    lim_min = min(slice_truth["obs_e2"].min(), slice_pred["e2_model"].min())
-    lim_max = max(slice_truth["obs_e2"].max(), slice_pred["e2_model"].max())
+    lim_min = min(slice_truth["e2_model"].min(), slice_pred["e2_model"].min())
+    lim_max = max(slice_truth["e2_model"].max(), slice_pred["e2_model"].max())
     lim_2 = max(abs(lim_min), abs(lim_max))
 
     fig, axs = pyplot.subplots(2, 2, figsize=(10, 10))
 
-    t_1 = numpy.linspace(slice_truth["obs_e1"].min(), slice_truth["obs_e1"].max())
-    t_2 = numpy.linspace(slice_truth["obs_e2"].min(), slice_truth["obs_e2"].max())
+    t_1 = numpy.linspace(slice_truth["e1_model"].min(), slice_truth["e1_model"].max())
+    t_2 = numpy.linspace(slice_truth["e2_model"].min(), slice_truth["e2_model"].max())
 
     nb_mags = numpy.unique(slice_truth["mag_bin"]).shape[0]
     cmap = pyplot.get_cmap("tab20")
@@ -521,7 +530,7 @@ def result_e(directory, slice_pred, slice_truth, err=0):
         MASK_BIN_MAG = slice_truth["mag_bin"] == mag_bin
 
         pred_mag_1 = slice_pred[MASK_BIN_MAG]["e1_model"].values
-        true_mag_1 = slice_truth[MASK_BIN_MAG]["obs_e1"].values
+        true_mag_1 = slice_truth[MASK_BIN_MAG]["e1_model"].values
 
         diff_mag_1 = pred_mag_1 - true_mag_1
         poly_g, _ = numpy.polyfit(true_mag_1, diff_mag_1, 1, cov=True)
@@ -538,7 +547,7 @@ def result_e(directory, slice_pred, slice_truth, err=0):
         axs[0, 0].set_xlabel("True")
         axs[0, 0].set_ylabel("Pred - True")
         axs[0, 0].set_title("Residuals of e1")
-        axs[0, 0].legend()
+        axs[0, 0].legend(loc="upper right")
 
         axs[0, 1].errorbar(true_mag_1, pred_mag_1, yerr=err, fmt="x", alpha=0.25, color=colors[idx])
         axs[0, 1].plot([-lim_1, lim_1], [-lim_1, lim_1], "k--", zorder=10)
@@ -549,7 +558,7 @@ def result_e(directory, slice_pred, slice_truth, err=0):
         axs[0, 1].set_title("Predicted vs True e1")
 
         pred_mag_2 = slice_pred[MASK_BIN_MAG]["e2_model"].values
-        true_mag_2 = slice_truth[MASK_BIN_MAG]["obs_e2"].values
+        true_mag_2 = slice_truth[MASK_BIN_MAG]["e2_model"].values
 
         diff_mag_2 = pred_mag_2 - true_mag_2
         poly_g_2, _ = numpy.polyfit(true_mag_2, diff_mag_2, 1, cov=True)
@@ -569,7 +578,7 @@ def result_e(directory, slice_pred, slice_truth, err=0):
         axs[1, 1].set_title("Predicted vs True e2")
 
     fig.tight_layout()
-    fig.savefig(directory / "res_ellips.pdf", dpi=300)
+    fig.savefig(directory / "res_ellips.pdf", dpi=DPI)
     fig.show()
 
 
@@ -608,77 +617,160 @@ def case_result_param(directory, pred, truth, PIXEL_SCALE):
         axs[1, i].set_ylabel("Pred")
 
     fig.tight_layout()
-    fig.savefig(directory / "res_params_galaxies.pdf", dpi=300)
+    fig.savefig(directory / "res_params_galaxies.pdf", dpi=DPI)
     fig.show()
 
 
-def total_mean_per_shear_bin(directory, df_e1, df_e2):
+def results_by_image(directory, pred_avg, true_avg, alpha, name):
+    fig, axes = pyplot.subplots(1, 2, figsize=(12, 5), sharey=False)
+
+    for i in range(2):
+        x_avg_g = true_avg[f"avg_g{i + 1}"]
+        y_avg_g = pred_avg[f"avg_obs_e{i + 1}"] - x_avg_g
+        if name == "pred":
+            y_err = pred_avg[f"avg_obs_e{i + 1}_err"]
+            w = 1.0 / y_err
+            (m, c), cov = numpy.polyfit(x_avg_g, y_avg_g, deg=1, w=w, cov=True)
+        else:
+            y_err = 0
+            (m, c), cov = numpy.polyfit(x_avg_g, y_avg_g, deg=1, cov=True)
+
+        sigma_m, sigma_c = numpy.sqrt(numpy.diag(cov))
+
+        t = numpy.linspace(-0.06, 0.06)
+        y_fit = m * t + c
+        sigma_fit = numpy.sqrt(t**2 * cov[0, 0] + cov[1, 1] + 2 * t * cov[0, 1])
+
+        axes[0].errorbar(
+            x_avg_g, y_avg_g, yerr=y_err, fmt="o", ms=2, capsize=3, label=f"e{i + 1}", alpha=alpha
+        )
+
+        label = f"m = {m:.2e} ± {sigma_m:.2e} / c = {c:.2e} ± {sigma_c:.2e}"
+        axes[1].plot(t, y_fit, label=label, zorder=10)
+        if name == "pred":
+            axes[1].fill_between(
+                t, y_fit - sigma_fit, y_fit + sigma_fit, alpha=alpha, label="uncertainty"
+            )
+
+        axes[i].set_xlabel("True avg shear")
+        axes[i].set_ylabel("predicted avg ellips - true avg shear")
+        axes[i].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
+        axes[0].legend(fontsize=9)
+        axes[1].legend(fontsize=9)
+
+    fig.tight_layout()
+    fig.savefig(directory / f"results_avg_per_image_{name}.pdf", dpi=DPI)
+    fig.show()
+
+
+def build_single_column_groups(df, column, possible_values):
+    groups = {}
+    for x in possible_values:
+        mask = df[column] == x
+        groups[float(x)] = df.index[mask]
+
+    return groups
+
+
+def compute_ellips(ellips, ellips_err):
+    all_zero = (ellips_err == 0).all()
+    if all_zero:
+        mu = numpy.mean(ellips)
+        err = 0
+    else:
+        weight = 1.0 / (ellips_err**2 + 0.26**2)
+        mu = numpy.sum(weight * ellips) / numpy.sum(weight)
+
+        # mu2 = numpy.sum(weight * ellips**2) / numpy.sum(weight)
+        # variance = mu2 - mu**2
+        # err = numpy.sqrt(variance / numpy.sum(weight) ** 2 / numpy.sum(weight**2))
+        # err = numpy.sqrt(variance) / numpy.sqrt(ellips.shape[0])
+
+        err = numpy.std(ellips) / numpy.sqrt(ellips.shape[0])
+
+    return mu, err
+
+
+def compute_by_shear_bin(true_avg, pred_gal, group, model):
+    res_pred_gal, res_pred_gal_err, res_true_gal = {}, {}, {}
+    for bin_label, idx_list in group.items():
+        mu_e_true = true_avg.loc[idx_list][f"avg_obs_{model}"].mean()
+
+        filtered_pred = pred_gal[pred_gal["image"].isin(idx_list)]
+
+        ellips = filtered_pred[f"{model}_model"]
+        ellips_err = filtered_pred[f"{model}_model_err"]
+        mu, err = compute_ellips(ellips, ellips_err)
+
+        res_pred_gal[bin_label] = mu
+        res_pred_gal_err[bin_label] = err
+        res_true_gal[bin_label] = mu_e_true
+
+    df = DataFrame({"pred_e": res_pred_gal, "pred_e_err": res_pred_gal_err, "true_e": res_true_gal})
+    df.index.name = "true_g"
+    df = df.reset_index()
+
+    return df
+
+
+def compute_by_bin(true_avg, pred_gal):
+    possible = numpy.sort(true_avg["avg_g1"].unique())
+
+    groups_g1 = build_single_column_groups(true_avg, "avg_g1", possible)
+    groups_g2 = build_single_column_groups(true_avg, "avg_g2", possible)
+
+    df_1 = compute_by_shear_bin(true_avg, pred_gal, groups_g1, "e1")
+    df_2 = compute_by_shear_bin(true_avg, pred_gal, groups_g2, "e2")
+
+    return df_1, df_2
+
+
+def result_by_bin(directory, df_e1, df_e2, style, name):
+    # def function(x, m, c):
+    #     return m * x + c
+
     fig, axes = pyplot.subplots(1, 2, figsize=(12, 5), sharey=True)
     axes = axes.flatten()
 
     for i, df in enumerate([df_e1, df_e2]):
-        x = df["true"]
-        y = df["residual"]
-        y_err = df["err_pred"]
-        w = df["w_err"]
+        x = df[style]
+        y = df["pred_e"] - x
+        if name == "pred":
+            y_err = df["pred_e_err"]
+            w = 1 / y_err
+            (m, c), cov = numpy.polyfit(x, y, deg=1, w=w, cov=True)
+        else:
+            y_err = 0
+            (m, c), cov = numpy.polyfit(x, y, deg=1, cov=True)
 
-        (m, c), cov = numpy.polyfit(x, y, deg=1, w=w, cov=True)
         sigma_m, sigma_c = numpy.sqrt(numpy.diag(cov))
+        # t = numpy.linspace(-0.06, 0.06)
+        # y_fit = m * t + c
 
-        t = numpy.linspace(-0.05, 0.05)
-        y_fit = m * t + c
-        sigma_fit = numpy.sqrt(t**2 * cov[0, 0] + cov[1, 1] + 2 * t * cov[0, 1])
+        # (m, c), cov = optimize.curve_fit(function, x, y, sigma=y_err)
+        y_fit = m * x + c
+        # sigma_m, sigma_c = numpy.sqrt(numpy.diag(cov))
+
+        # y_fit = m * t + c
+        # sigma_fit = numpy.sqrt(t**2 * cov[0, 0] + cov[1, 1] + 2 * t * cov[0, 1])
 
         label = f"m = {m:.2e} ± {sigma_m:.2e} / c = {c:.2e} ± {sigma_c:.2e}"
 
         axes[i].errorbar(x, y, yerr=y_err, fmt="o", capsize=3, label="Data")
-        axes[i].plot(t, y_fit, label=label)
-        axes[i].fill_between(
-            t, y_fit - sigma_fit, y_fit + sigma_fit, alpha=0.3, label="uncertainty"
-        )
-        axes[i].set_xlabel("Shear bin center")
+        # axes[i].plot(t, y_fit, label=label)
+        axes[i].plot(x, y_fit, label=label)
+        # axes[i].plot(t, y_fit, label=label)
+        # axes[i].fill_between(
+        #     t, y_fit - sigma_fit, y_fit + sigma_fit, alpha=0.3, label="uncertainty"
+        # )
+
+        axes[i].set_xlabel(f"Shear bin center {style}")
         axes[i].set_ylabel("predicted - true")
         axes[i].set_title(f"Residuals of total mean e{i + 1}")
-        axes[i].set_ylim(-0.005, 0.005)
-        axes[i].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
-        axes[i].legend(fontsize=9)
-
-    fig.tight_layout()
-    fig.savefig(directory / "total_mean.pdf", dpi=300)
-    fig.show()
-
-
-def total_avg(directory, pred_avg, true_avg):
-    fig, axes = pyplot.subplots(1, 2, figsize=(12, 5), sharey=False)
-    axes = axes.flatten()
-
-    for i in range(2):
-        x = true_avg[f"avg_g{i + 1}"]
-        y = pred_avg[f"e{i + 1}"] - x
-        y_err = pred_avg[f"e{i + 1}_err"]
-        w = 1.0 / y_err
-
-        (m, c), cov = numpy.polyfit(x, y, deg=1, w=w, cov=True)
-        sigma_m, sigma_c = numpy.sqrt(numpy.diag(cov))
-
-        t = numpy.linspace(-0.05, 0.05)
-        y_fit = m * t + c
-        sigma_fit = numpy.sqrt(t**2 * cov[0, 0] + cov[1, 1] + 2 * t * cov[0, 1])
-
-        label = f"m = {m:.2e} ± {sigma_m:.2e} / c = {c:.2e} ± {sigma_c:.2e}"
-
-        axes[0].errorbar(x, y, yerr=y_err, fmt="o", ms=2, capsize=3, label="Data", alpha=0.1)
-        axes[1].plot(t, y_fit, label=label, zorder=10)
-        axes[1].fill_between(
-            t, y_fit - sigma_fit, y_fit + sigma_fit, alpha=0.3, label="uncertainty"
-        )
-        axes[i].set_xlabel("True shear")
-        axes[i].set_ylabel("predicted - true")
-        # axes[i].set_title(f"Residuals of total mean e{i + 1}")
         # axes[i].set_ylim(-0.005, 0.005)
         axes[i].axhline(0, color="black", linestyle="--", linewidth=1, label="y=0")
         axes[i].legend(fontsize=9)
 
     fig.tight_layout()
-    fig.savefig(directory / "total_avg.pdf", dpi=300)
+    fig.savefig(directory / f"res_{style}_{name}.pdf", dpi=DPI)
     fig.show()

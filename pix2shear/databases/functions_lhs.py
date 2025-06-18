@@ -14,6 +14,10 @@ from scipy import spatial, stats
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from utils import DIRS, RED, RESET, scale
 
+BAND = 50  # pixels band-free galaxy
+DECIMALS = 2  # rounding for shear values
+
+
 # --------------------------------------------------------------------------------------------------
 
 
@@ -76,9 +80,9 @@ def ellips_uniform_transformation(array):
 
 
 # create 10 pixels band-free galaxy if wanted
-def generate_positions(array, pixel_out, band=10):
+def generate_positions(array, pixel_out):
     if pixel_out:
-        new_min, new_max = int(band), int(352 - band)
+        new_min, new_max = int(BAND), int(352 - BAND)
     else:
         new_min, new_max = 0, 352
 
@@ -113,6 +117,7 @@ def duplicates(arr, version):
         percentage = 100 * len(duplicates) / arr.shape[0]
         print(f"{RED} {percentage}% duplicates over {arr.shape[0]} {RESET}")
         path_save = DIRS["duplicates"] / f"{Path(str(version))}_duplicates_cosmos.npy"
+        print(f"Saving duplicates to {path_save}")
         numpy.save(file=path_save, arr=duplicates, allow_pickle=True)
 
 
@@ -120,18 +125,22 @@ def duplicates(arr, version):
 
 
 # LHS for image parameters & projection into real space
-def draw_and_project_lhs_img(seed, n_samples, decimals=3):
+def draw_and_project_lhs_img(seed, n_samples):
     hypercube = draw_lhs(seed, n_samples=n_samples, dim=2)
 
     # keep lhs uniform at the edge when rounded
-    max_shears = {2: 0.065, 3: 0.0605}[decimals]
+    max_shears = {2: 0.065, 3: 0.0605}[DECIMALS]
     hypercube = scale(hypercube, low=-max_shears, high=max_shears)
 
     # rounding
-    hypercube = numpy.round(hypercube, decimals=decimals)
+    hypercube = numpy.round(hypercube, decimals=DECIMALS)
 
-    # adding column for noise style
+    # adding column for (snc + angle rotation)
     hypercube = numpy.hstack((hypercube, numpy.ones((hypercube.shape[0], 1))))
+
+    # adding column for noise key
+    noise_key = numpy.arange(1, hypercube.shape[0] + 1).reshape(-1, 1)
+    hypercube = numpy.hstack((hypercube, noise_key))
 
     return hypercube
 
@@ -142,12 +151,12 @@ def draw_lhs_gal(lhs_pos, seed, nb_total_galaxies):
         hypercube = draw_lhs(seed, n_samples=nb_total_galaxies, dim=9)
 
     else:
-        # case galaxies position not included in lhs init (prob useless?)
+        # case galaxies position not included in lhs init (useless?)
         hypercube = draw_lhs(seed, n_samples=nb_total_galaxies, dim=7)
         pos_xy = draw_lhs(seed * 2, n_samples=nb_total_galaxies, dim=2)
         hypercube = numpy.hstack([hypercube, pos_xy])
 
-    # addings for galaxies from cosmos catalog
+    # adding columns for galaxies from cosmos catalog
     new_columns = numpy.zeros((hypercube.shape[0], 2), dtype=hypercube.dtype) - 1
     hypercube = numpy.hstack((hypercube, new_columns))
 
@@ -184,6 +193,27 @@ def project_lhs_gal(hypercube, ellips_style, pixel_out):
     hypercube[:, 8] = generate_positions(hypercube[:, 8], pixel_out)
 
     return hypercube
+
+
+# shape noise cancel
+def noise_cancel(lhs_img, lhs_gal):
+    transforms = [(1, 1), (-1, 2), (1, 3), (-1, 4)]
+    img_combined = []
+    gal_combined = []
+
+    for sign_ellips, label_noise in transforms:
+        gal_copy = lhs_gal.copy()
+        gal_copy[:, 0:2] *= sign_ellips
+        gal_combined.append(gal_copy)
+
+        lhs_copy = lhs_img.copy()
+        lhs_copy[:, 2] *= label_noise
+        img_combined.append(lhs_copy)
+
+    img_combined = numpy.vstack(img_combined)
+    gal_combined = numpy.vstack(gal_combined)
+
+    return img_combined, gal_combined
 
 
 # replace random galaxies into real cosmos-like galaxies
@@ -223,26 +253,6 @@ def adding_cosmos_catalog_galaxies(
     duplicates(matched_features, version)
 
     return lhs_gal
-
-
-def noise_cancel(lhs_img, lhs_gal):
-    transforms = [(1, 1), (-1, 2), (1, 3), (-1, 4)]
-    img_combined = []
-    gal_combined = []
-
-    for sign_ellips, label_noise in transforms:
-        gal_copy = lhs_gal.copy()
-        gal_copy[:, 0:2] *= sign_ellips
-        gal_combined.append(gal_copy)
-
-        lhs_copy = lhs_img.copy()
-        lhs_copy[:, -1] *= label_noise
-        img_combined.append(lhs_copy)
-
-    img_combined = numpy.vstack(img_combined)
-    gal_combined = numpy.vstack(gal_combined)
-
-    return img_combined, gal_combined
 
 
 def divide_for_multiprocess(hc, nb_of_samples, nb_galaxies):

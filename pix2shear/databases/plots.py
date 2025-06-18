@@ -64,7 +64,7 @@ def plot_example(selected_images, directory, arcsin):
         fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
     fig.tight_layout()
-    fig.savefig(directory / "examples_images.pdf", dpi=300)
+    fig.savefig(directory / "examples_images.pdf", dpi=300, bbox_inches="tight", pad_inches=0.05)
 
 
 def plot_histo(selection, bins, data):
@@ -197,15 +197,13 @@ def visu_inputs_ouputs(dbb, loggy=False):
 
 
 def noise_shape(images, table_data, dir_plots):
-    indices = table_data.index.to_list()
-
     fig = pyplot.figure(figsize=(20, 10))
     gs = gridspec.GridSpec(2, 3, width_ratios=[1, 1, 1.2], wspace=0.5)
 
     for i in range(4):
         ax = fig.add_subplot(gs[i // 2, i % 2])
         im = ax.imshow(numpy.arcsinh(images[i]), cmap="viridis")
-        ax.set_title(f"images: {indices[i]}", fontsize=12)
+        ax.set_title(f"images: {table_data['image'].iloc[i]}", fontsize=12)
         fig.colorbar(im, ax=ax, orientation="vertical", fraction=0.046, pad=0.04)
         ax.axis("off")
 
@@ -213,8 +211,9 @@ def noise_shape(images, table_data, dir_plots):
     ax_table.axis("off")
 
     table_data = table_data.T
+    table_data_rounded = table_data.round(4)
     table = ax_table.table(
-        cellText=table_data.values,
+        cellText=table_data_rounded.values,
         # colLabels=table_data.columns.tolist(),
         rowLabels=table_data.index,
         loc="center",
@@ -410,13 +409,13 @@ def histo_galaxies(hypercube_gal, dir_plots, alpha=0.2, bins=50):
     fig.savefig(dir_plots / "histo_hc_gal.pdf", dpi=300)
 
 
-def histo_images(hypercube_img, dir_plots, bins):
-    unique_key, _, non_unique_count_key = check_unique(hypercube_img, "key")
+def histo_images(hypercube_img, dir_plots, bins, max_shears, bins_e):
+    unique_hashed_key, _, non_unique_count_hashed_key = check_unique(hypercube_img, "hashed_key")
     unique_snc, _, non_unique_count_snc = check_unique(hypercube_img, "snc")
+    unique_noise_key, _, non_unique_count_noise_key = check_unique(hypercube_img, "noise_key")
 
     fontdict = {"fontsize": 10, "fontweight": "bold", "family": "serif", "color": "darkgreen"}
 
-    max_shears = 0.055
     alpha = 1
     fig, axes = pyplot.subplots(2, 3, figsize=(12, 8))
 
@@ -442,39 +441,44 @@ def histo_images(hypercube_img, dir_plots, bins):
 
     axes[0, 1].hist(
         hypercube_img["avg_int_e1"],
-        bins=50,
+        bins=bins_e,
         alpha=alpha,
-        label=f"avg_int_e1 {hypercube_img['avg_int_e1'].shape}",
+        label=f"avg_int_e1 : {hypercube_img['avg_int_e1'].shape[0]}",
         histtype="step",
     )
     axes[0, 1].hist(
-        hypercube_img["avg_int_e2"], bins=50, alpha=alpha, label="avg_int_e2", histtype="step"
+        hypercube_img["avg_int_e2"], bins=bins_e, alpha=alpha, label="avg_int_e2", histtype="step"
     )
-    axes[0, 1].legend()
+    axes[0, 1].legend(fontsize=8)
 
     axes[0, 2].hist(
         hypercube_img["avg_obs_e1"],
-        bins=50,
+        bins=bins_e,
         alpha=alpha,
-        label=f"avg_obs_e1 {hypercube_img['avg_obs_e1'].shape}",
+        label=f"avg_obs_e1 : {hypercube_img['avg_obs_e1'].shape[0]}",
         histtype="step",
     )
     axes[0, 2].hist(
-        hypercube_img["avg_obs_e2"], bins=50, alpha=alpha, label="avg_obs_e2", histtype="step"
+        hypercube_img["avg_obs_e2"], bins=bins_e, alpha=alpha, label="avg_obs_e2", histtype="step"
     )
-    axes[0, 2].legend()
+    axes[0, 2].legend(fontsize=8)
 
     axes[1, 0].hist(hypercube_img["snc"], bins=100, label="snc")
     axes[1, 0].set_title(
         f"snc : {unique_snc.shape[0]} w. {non_unique_count_snc} duplicates", fontdict
     )
 
-    axes[1, 1].hist(hypercube_img["key"], bins=100, label="key")
+    axes[1, 1].hist(hypercube_img["hashed_key"], bins=100, label="hashed_key")
     axes[1, 1].set_title(
-        f"key : {unique_key.shape[0]} w. {non_unique_count_key} duplicates", fontdict
+        f"hashed_key : {unique_hashed_key.shape[0]} w. {non_unique_count_hashed_key} duplicates",
+        fontdict,
     )
 
-    axes[1, 2].axis("off")
+    axes[1, 2].hist(hypercube_img["noise_key"], bins=100, label="noise_key")
+    axes[1, 2].set_title(
+        f"noise_key : {unique_noise_key.shape[0]} w. {non_unique_count_noise_key} duplicates",
+        fontdict,
+    )
 
     fig.suptitle(f"{hypercube_img.shape[0]} samples")
     fig.tight_layout()
@@ -899,7 +903,11 @@ def comparaison_3d(feat, target, results, indices, directory, with_all_catalog):
         height=800,
         showlegend=True,
     )
-    fig.write_image(directory / "replace_comparaison_3d.pdf", width=1200, height=600)
+    fig.write_image(
+        directory / "replace_comparaison_3d.pdf",
+        width=1200,
+        height=600,
+    )
     fig.show()
 
 

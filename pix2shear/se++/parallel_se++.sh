@@ -1,9 +1,11 @@
 #!/bin/bash
+
 ## SLURM VARIABLES (OVERLOAD)
 export MKL_NUM_THREADS=1
 export MKL_DYNAMIC=FALSE
 export OMP_NUM_THREADS=1
 export OMP_DYNAMIC=FALSE
+
 
 ## Arguments
 DATATEST_DIR=$1
@@ -17,9 +19,11 @@ SAMPLING_FACTOR=$8
 THRESHOLD=$9
 MIN_NB_PIXEL=${10}
 
+
 ## ACTIVATE ENV
 eval "$(micromamba shell hook --shell bash)"
 micromamba activate PISCO
+
 
 ## GET EACH SIMU NUMBER TO RUN
 index=$SLURM_ARRAY_TASK_ID
@@ -28,6 +32,7 @@ index_file=$(printf '%06d' $index)
 fits_file="${DATATEST_DIR}/${index_file}_simu.fits"
 assoc_file="${DATATEST_DIR}/${index_file}_simu_assoc.txt"
 simu_name=$(basename $fits_file)
+
 
 ## RUN
 command=(
@@ -49,7 +54,7 @@ if [[ $ASSOC -eq 1 ]]; then
         --assoc-catalog $assoc_file     # Assoc catalog file
         --assoc-columns 1,2             # Assoc columns to specify
         --assoc-mode NEAREST            # Assoc mode [FIRST, NEAREST, MEAN, MAG_MEAN, SUM, MAG_SUM, MIN, MAX]
-        --assoc-radius 10               # Assoc radius (Always in pixels)
+        --assoc-radius 5                # Assoc radius (Always in pixels)
         --assoc-coord-type PIXEL        # Assoc coordinates type
         --assoc-filter ALL              # Assoc catalog filter setting: ALL, MATCHED, UNMATCHED
     )
@@ -72,9 +77,11 @@ if [[ $index -lt $NB_CHECK_IMAGES ]]; then
     )
 fi
 
+
 ## RUN
 ${command[@]}
 echo "Job running on $HOSTNAME => Finished processing $simu_name"
+
 
 ## SAVE OUTPUTS
 python extract_outputs.py $CATALOG_DIR $IMAGES_DIR $simu_name $index $NB_CHECK_IMAGES $ASSOC

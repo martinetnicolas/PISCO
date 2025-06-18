@@ -64,7 +64,7 @@ class PiscoEuclidImage(tfds.core.GeneratorBasedBuilder):
             "avg_g": tfds.features.Tensor(shape=(2,), dtype=DTYPE_32),
             "avg_obs_e": tfds.features.Tensor(shape=(2,), dtype=DTYPE_32),
             "avg_int_e": tfds.features.Tensor(shape=(2,), dtype=DTYPE_32),
-            "keys": tfds.features.Tensor(shape=(2,), dtype=DTYPE_32),
+            "keys": tfds.features.Tensor(shape=(3,), dtype=DTYPE_32),
             "gal_params": tfds.features.Tensor(
                 shape=(self.nb_galaxies_parameters, self.nb_galaxies_per_image), dtype=DTYPE_32
             ),

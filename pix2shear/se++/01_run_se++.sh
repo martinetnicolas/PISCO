@@ -1,12 +1,10 @@
 #!/bin/bash
-PIX2SHEAR_DIR=/net/GECO/pisco/PIX2SHEAR
-PSF_DIR=/net/GECO/pisco/PIX2SHEAR/DATASETS/psf_se
 
 ## USER INPUT
-VERSION=0.0.4
+VERSION=0.0.3
 MAX_PARALLEL_JOBS=120   # max cc LAM : 125
 NB_CHECK_IMAGES=100     # number of images segmentation/residual/fitting/background
-ASSOC=1                 # with associated locations (0 or 1)
+ASSOC=0                 # with associated locations (0 or 1)
 ENTIRE_DATASET=True
 PSF="psf_style-airy_size-41_pixelscale-0.1.fits"
 SAMPLING_FACTOR=1
@@ -14,50 +12,58 @@ SAMPLING_FACTOR=1
 # SAMPLING_FACTOR=2
 THRESHOLD=1.75
 MIN_NB_PIXEL=6
-
-## DIRECTORIES
-DATATEST_DIR=$PIX2SHEAR_DIR/DATASETS/pisco_euclid_se/$VERSION
-RESULTS_DIR=$PIX2SHEAR_DIR/RESULTS_SEXTRACTOR/$VERSION++
-if [ "$ASSOC" -eq 1 ]; then
-    RESULTS_DIR="${RESULTS_DIR}_assoc"
+STEP_NB_FILES=50000
+DATATEST_DIR=/net/GECO/pisco/PIX2SHEAR/DATASETS/pisco_euclid_se/$VERSION
+NB_FILES=$(find "$DATATEST_DIR" -name "*.fits" | wc -l)
+# RANGE
+if [ $ENTIRE_DATASET = "True" ]; then
+    ARRAY_RANGE=0-$((NB_FILES - 1)) 
+else
+    ARRAY_RANGE=0-$((STEP_NB_FILES - 1))
+    # ARRAY_RANGE="$STEP_NB_FILES"-$((NB_FILES - 1))
 fi
+ARRAY_RANGE=0-5
+echo $ARRAY_RANGE
+
 
 ## CHECKS
-# Sextractor version already done
-if [ -d $RESULTS_DIR ]; then
-    echo -e "⚠️  \033[1;31m$(basename $RESULTS_DIR)\033[0m has been done ⚠️"
-    read -n1 -p "Do you want to remove it? (y/n) :" choice
-    echo
-    if [[ $choice =~ ^[Yy]$ ]]; then
-        rm -rf $RESULTS_DIR
-        mkdir -p $RESULTS_DIR
-    else
-        exit 1
-    fi
-fi
 # Database version exists
 if [ ! -d $DATATEST_DIR ]; then
     echo ERROR: $VERSION does not exist
     exit 1
 fi
+# SE++ version already done
+RESULTS_DIR=/net/GECO/pisco/PIX2SHEAR/RESULTS_SEXTRACTOR/$VERSION++
+if [ $ASSOC -eq 1 ]; then
+    RESULTS_DIR="${RESULTS_DIR}_assoc"
+fi
+if [ $ENTIRE_DATASET = "True" ]; then
+    if [ -d $RESULTS_DIR ]; then
+        echo -e "⚠️  \033[1;31m$(basename $RESULTS_DIR)\033[0m has been done ⚠️"
+        read -n1 -p "Do you want to remove it? (y/n) :" choice
+        echo
+        if [[ $choice =~ ^[Yy]$ ]]; then
+            rm -rf $RESULTS_DIR
+            mkdir -p $RESULTS_DIR
+        else
+            exit 1
+        fi
+    fi
+fi
+
 
 ## CREATE RESULTS DIRECTORIES
 create_dir() {
     mkdir -p $1 && echo $1
 }
+PSF_DIR=/net/GECO/pisco/PIX2SHEAR/DATASETS/psf_se
+
 IMAGES_DIR=$(create_dir $RESULTS_DIR/IMAGES)
 CATALOG_DIR=$(create_dir $RESULTS_DIR/CATALOG)
 LOG_DIR=$(create_dir $RESULTS_DIR/logs)
 
-## NUMBER OF FILES COMPUTED
-if [ $ENTIRE_DATASET = "True" ]; then
-  NUM_FILES=$(find "$DATATEST_DIR" -name "*.fits" | wc -l)
-else
-  NUM_FILES=5
-fi
 
 ## RUN IN PARALLEL
-ARRAY_RANGE=0-$((NUM_FILES - 1)) # slurm arrays are zero-indexed
 sbatch  -p short \
         --array=${ARRAY_RANGE}%${MAX_PARALLEL_JOBS} \
         --error=$LOG_DIR/Err_%a.log \

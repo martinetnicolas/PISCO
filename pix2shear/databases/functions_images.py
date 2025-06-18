@@ -8,13 +8,14 @@ from utils import DIRS, DTYPE_16, DTYPE_32
 
 
 def unpack_lhs(arguments):
-    g1, g2, snc = arguments[0]
+    g1, g2, snc, noise_key = arguments[0]
     lhs = arguments[1]
 
     return {
         "g1": g1,
         "g2": g2,
-        "snc": snc,
+        "snc": int(snc),
+        "noise_key": int(noise_key),
         "int_e1": lhs[:, 0],
         "int_e2": lhs[:, 1],
         "off_x": lhs[:, 2],
@@ -54,13 +55,28 @@ def build_psf(style):
     elif style == "euclid":
         psf = (
             galsim.OpticalPSF(
-                lam=800, diam=1.2, obscuration=0.3, scale_unit=galsim.arcsec, flux=flux, nstruts=3
+                lam=800,
+                diam=1.2,
+                obscuration=0.3,
+                scale_unit=galsim.arcsec,
+                flux=flux,
+                nstruts=3,
             )
             + galsim.OpticalPSF(
-                lam=700, diam=1.2, obscuration=0.3, scale_unit=galsim.arcsec, flux=flux, nstruts=3
+                lam=700,
+                diam=1.2,
+                obscuration=0.3,
+                scale_unit=galsim.arcsec,
+                flux=flux,
+                nstruts=3,
             )
             + galsim.OpticalPSF(
-                lam=600, diam=1.2, obscuration=0.3, scale_unit=galsim.arcsec, flux=flux, nstruts=3
+                lam=600,
+                diam=1.2,
+                obscuration=0.3,
+                scale_unit=galsim.arcsec,
+                flux=flux,
+                nstruts=3,
             )
         )
 
@@ -94,7 +110,10 @@ def build_full_image(image_size, pixel_scale):
 
 # Tune the speed of FFT (taken from Jarvis discussion https://github.com/GalSim-developers/GalSim/issues/566)
 GSPARAMS = galsim.GSParams(
-    xvalue_accuracy=2.0e-4, kvalue_accuracy=2.0e-4, maxk_threshold=5.0e-3, folding_threshold=1.0e-2
+    xvalue_accuracy=2.0e-4,
+    kvalue_accuracy=2.0e-4,
+    maxk_threshold=5.0e-3,
+    folding_threshold=1.0e-2,
 )
 
 
@@ -165,7 +184,6 @@ def create_images(index_args_tuple, style_psf, gal_type):
     # galsim images
     full_image = build_full_image(IMG_SIZE, PIXEL_SCALE)
     noise_image = build_full_image(IMG_SIZE, PIXEL_SCALE)
-    # full_image_z = build_full_image(IMG_SIZE, PIXEL_SCALE)
 
     # print each object
     NB_OBJET = len(params["x"])
@@ -174,7 +192,10 @@ def create_images(index_args_tuple, style_psf, gal_type):
             # compute Sersic profile with cosmos catalog galaxies
             SAMPLE = str(params["sample_cosmos"][i])
             cosmos_cat = galsim.COSMOSCatalog(
-                sample=SAMPLE, dir=DIRS["cosmos"], exclusion_level="none", exptime=EXPTIME
+                sample=SAMPLE,
+                dir=DIRS["cosmos"],
+                exclusion_level="none",
+                exptime=EXPTIME,
             )
 
             INDEX = int(params["index_cosmos"][i])
@@ -226,24 +247,12 @@ def create_images(index_args_tuple, style_psf, gal_type):
         bounds = stamp.bounds & full_image.bounds
         full_image[bounds] += stamp[bounds]
 
-        # # pixeled-binned redshift image
-        # full_image_z = galsim.ImageF(PATCH_SIZE, PATCH_SIZE)
-        # full_image_z.setOrigin(1, 1)
-        # pos_gal = galsim.PositionI(int(round(ix_nominal)), int(round(iy_nominal)))
-        # full_image_z[pos_gal.x, pos_gal.y] = bin_indices
-
-        # # flux-binned redshift image
-        # label_stamp = galsim.ImageI(PATCH_SIZE, PATCH_SIZE, scale=PIXEL_SCALE)
-        # label_stamp.setCenter(ix_nominal, iy_nominal)
-        # mask = create_mask_wrt_hlr(PIXEL_SCALE, params["hlr"][i], PATCH_SIZE, PATCH_SIZE)
-        # label_stamp.array[mask] = bin_indices
-        # bounds_pixel = label_stamp.bounds & full_image_z.bounds
-        # full_image_z = apply_bin_indices_area(full_image_z, label_stamp, bounds_pixel)
-
     # gaussian noise image
     F_SKY = PIXEL_SCALE ** (2) * EXPTIME * 10 ** (-(SKY_BKG - ZP) / 2.5)  # e-/pixel
     variance = (numpy.sqrt(readoutnoise**2 + F_SKY) / GAIN) ** 2  # e- -> ADU
-    noise = galsim.GaussianNoise(rng=galsim.BaseDeviate(key), sigma=math.sqrt(variance))
+    noise = galsim.GaussianNoise(
+        rng=galsim.BaseDeviate(params["noise_key"]), sigma=math.sqrt(variance)
+    )
     noise_image.addNoise(noise)
 
     # add noise
@@ -263,7 +272,7 @@ def create_images(index_args_tuple, style_psf, gal_type):
         "avg_g": numpy.array([avg_g1, avg_g2]).astype(DTYPE_32),
         "avg_obs_e": numpy.array([avg_obs_e1, avg_obs_e2]).astype(DTYPE_32),
         "avg_int_e": numpy.array([avg_int_e1, avg_int_e2]).astype(DTYPE_32),
-        "keys": numpy.array([key, params["snc"]]).astype(DTYPE_32),
+        "keys": numpy.array([key, params["snc"], params["noise_key"]]).astype(DTYPE_32),
         "gal_params": numpy.stack(
             [
                 params["int_e1"],

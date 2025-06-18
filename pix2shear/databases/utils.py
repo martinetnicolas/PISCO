@@ -77,6 +77,67 @@ def getting_norms(data):
     return DataFrame(measures_norms)
 
 
+def create_se(example, num):
+    hashed_key = int(example["keys"][0])
+    gal_params = example["gal_params"]
+
+    df_gal = DataFrame(
+        gal_params.T,
+        columns=["int_e1", "int_e2", "obs_e1", "obs_e2", "x", "y", "mag", "hlr", "sersic"],
+    )
+    df_gal["hashed_key"] = hashed_key
+    df_gal["image"] = num
+
+    return df_gal
+
+
+def write_values_for_se(DIR_SE, sampling, hashed_key, image, df):
+    # save galaxy parameters per image
+    path_csv = DIR_SE / f"{hashed_key:06d}_true_galaxies_params.csv"
+    df.to_csv(path_or_buf=path_csv, index=False)
+
+    # save image as FITS
+    path_fits = DIR_SE / f"{hashed_key:06d}_simu.fits"
+    write_fits(path=path_fits, data=image, sampling=sampling)
+
+    # save positions (x, y) only for SE assoc
+    path_assoc = DIR_SE / f"{hashed_key:06d}_simu_assoc.txt"
+    df[["x", "y"]].to_csv(path_or_buf=path_assoc, sep=" ", index=False, header=False)
+
+
+def create_df_img_and_gal(example, nb_image):
+    gal_params = example["gal_params"]
+    keys = example["keys"]
+    avg_g = example["avg_g"]
+    avg_obs_e = example["avg_obs_e"]
+    avg_int_e = example["avg_int_e"]
+
+    # accumulate gal properties
+    df_gal = DataFrame(
+        gal_params.T,
+        columns=["int_e1", "int_e2", "obs_e1", "obs_e2", "x", "y", "mag", "hlr", "sersic"],
+    )
+    df_gal["hashed_key"] = int(keys[0])
+    df_gal["image"] = nb_image
+
+    # accumulate avg_g and avg_obs_e for global CSV
+    dict_img = {
+        "avg_g1": avg_g[0],
+        "avg_g2": avg_g[1],
+        "avg_obs_e1": avg_obs_e[0],
+        "avg_obs_e2": avg_obs_e[1],
+        "avg_int_e1": avg_int_e[0],
+        "avg_int_e2": avg_int_e[1],
+        "hashed_key": int(keys[0]),
+        "snc": int(keys[1]),
+        "noise_key": int(keys[2]),
+        "image": nb_image,
+    }
+    df_img = DataFrame([dict_img])
+
+    return df_gal, df_img
+
+
 def save_psf(direc, style, psf, image_size, pixel_scale, with_noise=False):
     image = galsim.ImageF(image_size, image_size, scale=pixel_scale)
     psf_image = psf.drawImage(image)
@@ -100,11 +161,19 @@ def save_psf(direc, style, psf, image_size, pixel_scale, with_noise=False):
     hdul.writeto(fileobj=f"{name}.fits", overwrite=True)
 
 
+def get_indices_snc2(hypercube_gal):
+    cols_to_ignore = ["int_e1", "int_e2", "obs_e1", "obs_e2", "hashed_key", "image"]
+    df_compare = hypercube_gal.drop(columns=cols_to_ignore)
+    grouped_indices = df_compare.groupby(list(df_compare.columns)).indices
+    common_index_lists = [idx_list for idx_list in grouped_indices.values() if len(idx_list) > 1]
+    return common_index_lists
+
+
 def get_indices_snc(hypercube_gal_params):
     cols_to_groupby = [
         col
         for col in hypercube_gal_params.columns
-        if col not in ["int_e1", "int_e2", "obs_e1", "obs_e2", "image"]
+        if col not in ["int_e1", "int_e2", "obs_e1", "obs_e2", "hashed_key"]
     ]
     duplicates = hypercube_gal_params[
         hypercube_gal_params.duplicated(subset=cols_to_groupby, keep=False)
