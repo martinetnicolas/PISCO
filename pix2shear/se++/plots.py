@@ -68,6 +68,20 @@ def slice_csv(file_path, nb_total):
     return read_csv(file_path, sep=",", skiprows=0)[:nb_total]
 
 
+def compute_res(IMAGES_DIR):
+    residual_files = sorted(IMAGES_DIR.glob("residual_*_simu_1.fits"))
+    all_pixels = []
+    image_ids = []
+    for idx, file in tqdm(enumerate(residual_files), total=len(residual_files)):
+        image = fits.getdata(file).astype(numpy.float32)
+        all_pixels.append(image.max())
+        image_ids.append(idx)
+    all_pixels = numpy.array(all_pixels)
+    image_ids = numpy.array(image_ids)
+    df = DataFrame({"pixel_value": all_pixels, "image_id": image_ids})
+    return df, all_pixels
+
+
 def filtering(pred_avg, true_avg, detections, pred_gal, true_gal, mask):
     images_mask = mask[mask].index.to_numpy()
 
@@ -144,11 +158,33 @@ def get_match(df_pred, df_true, radius):
     return filter_pred, filter_truth
 
 
-# --------------------------------------------------------------------------------------------------
+def decode_flags(flag):
+    meanings = {
+        1: "has neighbors (was deblended)",
+        2: "was blended",
+        4: "saturated pixel",
+        8: "close to image border",
+        16: "aperture data corrupted",
+        32: "isophotal data corrupted",
+        64: "memory overflow (deblending)",
+        128: "memory overflow (extraction)",
+    }
+    return [meaning for bit, meaning in meanings.items() if flag & bit]
+
+
+def compute_flags(pred_gal_mask):
+    pyplot.hist(pred_gal_mask["source_flags"], bins=17, log=True)
+
+    # images_with_flags = pred_gal_mask.loc[pred_gal_mask["source_flags"] != 0, "image"].unique()
+    nonzero_flags = pred_gal_mask.loc[pred_gal_mask["source_flags"] != 0, "source_flags"].unique()
+    return nonzero_flags
 
 
 def _identity(x):
     return x
+
+
+# --------------------------------------------------------------------------------------------------
 
 
 def make_table(ax, data):
@@ -189,7 +225,7 @@ def image_fitting(dataset_dir, images_dir, choice, plots_dir, transformed=False)
     name_image = dataset_dir / choice
     name_fitting = images_dir / f"fitting_{choice}_1"
 
-    # assoc = loadtxt(f"{name_image}_assoc.txt")
+    assoc = loadtxt(f"{name_image}_assoc.txt")
     image = func(fits.open(f"{name_image}.fits")[0].data.astype(numpy.float32))
     fitting = func(fits.open(f"{name_fitting}.fits")[0].data.astype(numpy.float32))
     extra = fits.open(f"{name_extra}.fits")[0].data.astype(numpy.float32)
@@ -207,8 +243,8 @@ def image_fitting(dataset_dir, images_dir, choice, plots_dir, transformed=False)
 
     im3 = axes[2].imshow(extra, cmap="gray")
     axes[2].set_title(title_extra)
-    # if not transformed:
-    #     axes[2].scatter(assoc[:, 0], assoc[:, 1], color="red", marker="o", s=2, label="assoc")
+    if not transformed:
+        axes[2].scatter(assoc[:, 0], assoc[:, 1], color="red", marker="o", s=2, label="assoc")
 
     for ax, img in zip(axes.flat, [im1, im2, im3]):
         divider = make_axes_locatable(ax)

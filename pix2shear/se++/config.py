@@ -12,7 +12,6 @@ from sourcextractor.config import (
     SersicModel,
     add_model,
     add_output_column,
-    # add_prior,
     get_flux_parameter,
     get_pos_parameters,
     set_deblend_factor,
@@ -37,8 +36,6 @@ emod = DependentParameter(lambda x, y: numpy.sqrt(x * x + y * y), e1, e2)  # mag
 ratio = DependentParameter(lambda e: numpy.abs(1 - e) / (1 + e), emod)  # axis ratio for ell measure
 angle = DependentParameter(lambda e1, e2: 0.5 * numpy.arctan2(e2, e1), e1, e2)  # angle major axis
 sersic = FreeParameter(0.8, Range((0.3, 10), RangeType.LINEAR))
-# add_prior(e1, 0.0, 0.6)
-# add_prior(e2, 0.0, 0.6)
 
 ## MODEL
 use_iterative_fitting(True)

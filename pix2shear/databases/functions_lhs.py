@@ -14,7 +14,7 @@ from scipy import spatial, stats
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from utils import DIRS, RED, RESET, scale
 
-BAND = 50  # pixels band-free galaxy
+BAND = 100  # pixels band-free galaxy
 DECIMALS = 2  # rounding for shear values
 
 

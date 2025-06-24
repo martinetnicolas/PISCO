@@ -45,12 +45,15 @@ command=(
     --detection-minimum-area $MIN_NB_PIXEL          # min. # of pixels above threshold
     --sampling-scale-factor $SAMPLING_FACTOR        # Scaling factor for the rendering of models (e.g. 2 = twice the resolution)
     --model-fitting-iterations 300                  # maximum number of iterations allowed for model fitting
+    --partition-threshold-count 64
+    --partition-minimum-contrast 0.0005
+    --partition-minimum-area 2
 )
 # Adding assoc
 if [[ $ASSOC -eq 1 ]]; then
     echo "with $assoc_file"
     command+=(
-        --output-properties PixelBoundaries,FlexibleModelFitting,Vignet,AutoPhotometry,FluxRadius,AssocMode
+        --output-properties PixelBoundaries,FlexibleModelFitting,Vignet,AutoPhotometry,FluxRadius,SourceFlags,AssocMode
         --assoc-catalog $assoc_file     # Assoc catalog file
         --assoc-columns 1,2             # Assoc columns to specify
         --assoc-mode NEAREST            # Assoc mode [FIRST, NEAREST, MEAN, MAG_MEAN, SUM, MAG_SUM, MIN, MAX]
@@ -60,7 +63,8 @@ if [[ $ASSOC -eq 1 ]]; then
     )
 else
     command+=(
-        --output-properties PixelBoundaries,FlexibleModelFitting,Vignet,AutoPhotometry,FluxRadius
+        --output-properties PixelBoundaries,FlexibleModelFitting,Vignet,AutoPhotometry,FluxRadius,SourceFlags
+        --check-image-residual $IMAGES_DIR/residual.fits
     )
 fi
 # Images checks for the first NB_CHECK_IMAGES simulations
@@ -69,7 +73,6 @@ if [[ $index -lt $NB_CHECK_IMAGES ]]; then
         --check-image-segmentation $IMAGES_DIR/segmentation_$simu_name
         --check-image-background $IMAGES_DIR/background_$simu_name
         --check-image-model-fitting $IMAGES_DIR/fitting.fits
-        --check-image-residual $IMAGES_DIR/residual.fits
         --check-image-variance $IMAGES_DIR/variance_$simu_name
         --check-image-psf $IMAGES_DIR/psf$simu_name
         --check-image-measurement-background $IMAGES_DIR/measurement-background_$simu_name

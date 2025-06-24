@@ -1,28 +1,30 @@
 #!/bin/bash
 
 ## USER INPUT
-VERSION=0.0.3
+VERSION=0.0.2
 MAX_PARALLEL_JOBS=120   # max cc LAM : 125
 NB_CHECK_IMAGES=100     # number of images segmentation/residual/fitting/background
 ASSOC=0                 # with associated locations (0 or 1)
 ENTIRE_DATASET=True
+FIRST_PART_DATASET=False
+STEP_NB_FILES=50000
 PSF="psf_style-airy_size-41_pixelscale-0.1.fits"
 SAMPLING_FACTOR=1
-# PSF="psf_style-airy_size-81_pixelscale-0.05.fits"
-# SAMPLING_FACTOR=2
-THRESHOLD=1.75
-MIN_NB_PIXEL=6
-STEP_NB_FILES=50000
+THRESHOLD=1.5
+MIN_NB_PIXEL=5
 DATATEST_DIR=/net/GECO/pisco/PIX2SHEAR/DATASETS/pisco_euclid_se/$VERSION
 NB_FILES=$(find "$DATATEST_DIR" -name "*.fits" | wc -l)
+
 # RANGE
 if [ $ENTIRE_DATASET = "True" ]; then
-    ARRAY_RANGE=0-$((NB_FILES - 1)) 
+    ARRAY_RANGE=0-$((NB_FILES - 1))
 else
-    ARRAY_RANGE=0-$((STEP_NB_FILES - 1))
-    # ARRAY_RANGE="$STEP_NB_FILES"-$((NB_FILES - 1))
+    if [ $FIRST_PART_DATASET = "True" ]; then
+        ARRAY_RANGE=0-$((STEP_NB_FILES - 1))
+    else
+        ARRAY_RANGE=$STEP_NB_FILES-$((NB_FILES - 1))
+    fi
 fi
-ARRAY_RANGE=0-5
 echo $ARRAY_RANGE
 
 
