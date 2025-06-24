@@ -8,8 +8,8 @@ from tqdm import tqdm
 from utils import DIR_DATASETS, DIRS, RED, RESET, create_se, write_values_for_se
 
 # USER DATA ---------------------------------------------------------------------------------
-VERSION = "0.0.3"
-NB_OF_SAMPLES = 5_000
+VERSION = "0.0.0"
+NB_OF_SAMPLES = 50
 SE_VERSION = True
 SAMPLING = 1
 PERCENTAGE_COSMOS = 0

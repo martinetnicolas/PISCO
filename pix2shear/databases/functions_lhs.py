@@ -225,7 +225,7 @@ def adding_cosmos_catalog_galaxies(
     metric="euclidean",  # "euclidean" "mahalanobis" "cityblock"
 ):
     # galaxies we want to replace
-    check_columns = [0, 1, 4, 5, 6]  # e1 e2 mag hlr sersic
+    check_columns = [0, 1, 4, 5, 6]  # e1 e2 mag hlr sersic LHS column number
     check_columns_cosmos = ["e1", "e2", "mag", "hlr", "sersic"]
 
     # galaxies from lhs

@@ -47,7 +47,6 @@ if __name__ == "__main__":
 
     # apply mask
     mag = mag[mask]
-    # mag = numpy.clip(mag, a_min=None, a_max=24.5)
     sersic = sersic[mask]
     hlr = hlr[mask]
 
