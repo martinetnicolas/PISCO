@@ -45,8 +45,8 @@ command=(
     --detection-minimum-area $MIN_NB_PIXEL          # min. # of pixels above threshold
     --sampling-scale-factor $SAMPLING_FACTOR        # Scaling factor for the rendering of models (e.g. 2 = twice the resolution)
     --model-fitting-iterations 300                  # maximum number of iterations allowed for model fitting
-    --partition-threshold-count 64
-    --partition-minimum-contrast 0.0005
+    --partition-threshold-count 32
+    --partition-minimum-contrast 0.001
     --partition-minimum-area 2
 )
 # Adding assoc

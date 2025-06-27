@@ -1,6 +1,7 @@
 from functools import partial
 from multiprocessing import Pool, cpu_count
 
+import galsim
 import numpy
 import tensorflow_datasets as tfds
 from functions_images import create_images, create_psf
@@ -13,7 +14,7 @@ from functions_lhs import (
     project_lhs_gal,
 )
 from tqdm import tqdm
-from utils import DTYPE_16, DTYPE_32
+from utils import DIRS, DTYPE_16, DTYPE_32
 
 # --------------------------------------------------------------------------------------------------
 
@@ -127,13 +128,41 @@ class PiscoEuclidImage(tfds.core.GeneratorBasedBuilder):
         # combined for multiprocess
         combined_lhs = list(zip(lhs_img, lhs_gal))
 
-        # compute images
-        # fix function parameters
-        create_images_partial = partial(
-            create_images, style_psf=self.style_psf, gal_type=self.gal_type
+        # use_real of not (save RAM)
+        if self.gal_type == "parametric" or self.percentage_cosmos == 0:
+            use_real = False
+        elif self.gal_type == "real":
+            use_real = True
+
+        # pre loaded cosmos catalogs
+        EXPTIME = 4 * 566
+        cosmos_cat_23 = galsim.COSMOSCatalog(
+            sample="23.5",
+            dir=DIRS["cosmos"],
+            exclusion_level="none",
+            exptime=EXPTIME,
+            preload=False,
+            use_real=use_real,
+        )
+        cosmos_cat_25 = galsim.COSMOSCatalog(
+            sample="25.2",
+            dir=DIRS["cosmos"],
+            exclusion_level="none",
+            exptime=EXPTIME,
+            preload=False,
+            use_real=use_real,
         )
 
-        # run
+        # fix function parameters
+        create_images_partial = partial(
+            create_images,
+            style_psf=self.style_psf,
+            gal_type=self.gal_type,
+            cosmos_cat_23=cosmos_cat_23,
+            cosmos_cat_25=cosmos_cat_25,
+        )
+
+        # compute images
         with Pool(processes=cpu_count()) as pool:
             for trial, result in tqdm(
                 pool.imap(create_images_partial, enumerate(combined_lhs), chunksize=8),

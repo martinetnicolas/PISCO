@@ -2,7 +2,7 @@ import math
 
 import galsim
 import numpy
-from utils import DIRS, DTYPE_16, DTYPE_32
+from utils import DTYPE_16, DTYPE_32
 
 # --------------------------------------------------------------------------------------------------
 
@@ -160,13 +160,14 @@ def apply_bin_indices_area(image, label_stamp, bounds_pixel):
 
 
 # create pisco euclid-like image
-def create_images(index_args_tuple, style_psf, gal_type):
+def create_images(index_args_tuple, style_psf, gal_type, cosmos_cat_23, cosmos_cat_25):
     # get seed for noise and args for galsim
     key, arguments = index_args_tuple
     key = int(key)
 
     # params simu
     params = unpack_lhs(arguments)
+    NB_OBJET = len(params["x"])
 
     # constant arguments
     PIXEL_SCALE, PATCH_SIZE, IMG_SIZE, EXPTIME, GAIN, readoutnoise, SKY_BKG, ZP = get_constants()
@@ -186,24 +187,21 @@ def create_images(index_args_tuple, style_psf, gal_type):
     noise_image = build_full_image(IMG_SIZE, PIXEL_SCALE)
 
     # print each object
-    NB_OBJET = len(params["x"])
     for i in range(NB_OBJET):
         if params["index_cosmos"][i] > 0:
             # compute Sersic profile with cosmos catalog galaxies
             SAMPLE = str(params["sample_cosmos"][i])
-            cosmos_cat = galsim.COSMOSCatalog(
-                sample=SAMPLE,
-                dir=DIRS["cosmos"],
-                exclusion_level="none",
-                exptime=EXPTIME,
-            )
+            if SAMPLE == "23.5":
+                cosmos_cat = cosmos_cat_23
+            elif SAMPLE == "25.2":
+                cosmos_cat = cosmos_cat_25
 
             INDEX = int(params["index_cosmos"][i])
             gal = cosmos_cat.makeGalaxy(
                 index=INDEX,
                 gal_type=gal_type,
                 noise_pad_size=0,
-                sersic_prec=0.0,
+                sersic_prec=0.05,
                 gsparams=GSPARAMS,
             )
 

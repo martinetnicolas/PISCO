@@ -22,9 +22,9 @@ dependencies:
 - hiplot
 - holoviews
 - bokeh
+- panel
 - python-kaleido
 - jupyter_bokeh
-- panel
 - astropy
 - galsim
 - scikit-learn

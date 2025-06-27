@@ -113,7 +113,9 @@ class OwnResNet(nn.Module):
         )(x)
         x = self.perturb("conv_1", x)
         self.sow("intermediates", "final_conv_layer", x)
+
         x = mean_fn(x)
+
         return UnivariateNormal(nb_cpt=self.nb_cpt, name="Univariate")(x)
 
 

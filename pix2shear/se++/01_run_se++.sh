@@ -11,7 +11,7 @@ STEP_NB_FILES=50000
 PSF="psf_style-airy_size-41_pixelscale-0.1.fits"
 SAMPLING_FACTOR=1
 THRESHOLD=1.5
-MIN_NB_PIXEL=5
+MIN_NB_PIXEL=6
 DATATEST_DIR=/net/GECO/pisco/PIX2SHEAR/DATASETS/pisco_euclid_se/$VERSION
 NB_FILES=$(find "$DATATEST_DIR" -name "*.fits" | wc -l)
 

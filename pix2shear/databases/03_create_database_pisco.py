@@ -9,15 +9,15 @@ from utils import DIR_DATASETS, DIRS, RED, RESET, create_se, write_values_for_se
 
 # USER DATA ---------------------------------------------------------------------------------
 VERSION = "0.0.0"
-NB_OF_SAMPLES = 50
-SE_VERSION = True
+NB_OF_SAMPLES = 1000
+SE_VERSION = False
 SAMPLING = 1
 PERCENTAGE_COSMOS = 0
 GAL_TYPE = "real"  # "real" or "parametric"
 NB_GALAXIES_PER_IMAGE = 10
 ELLIPS_STYLE = "gaussian"  # gaussian / uniform probability for ellipticities
-PIXELS_OUT = True  # use a 10 pixels band-free around the image
-NOISE_CANCEL = True  # x4 number of images
+PIXELS_OUT = False  # use a 10 pixels band-free around the image
+NOISE_CANCEL = False  # x4 number of images
 LHS_POS = False  # x,y included in LHS
 SEED_DATABASE = 2222
 STYLE_PSF = "airy"  # airy / euclid
