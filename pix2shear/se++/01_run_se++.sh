@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## USER INPUT
-VERSION=0.0.2
+VERSION=0.0.1
 MAX_PARALLEL_JOBS=120   # max cc LAM : 125
 NB_CHECK_IMAGES=100     # number of images segmentation/residual/fitting/background
 ASSOC=0                 # with associated locations (0 or 1)
